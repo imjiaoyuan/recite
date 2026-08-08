@@ -1,0 +1,65 @@
+# AWL 学术词汇表（Academic Word List，Coxhead 2000）用作"读博/学术英语"词本
+# 这里收录 Sublist 1（学术语料中最高频的 60 个词族）。
+# 完整 570 词族（10 个 sublist）可从官网补充：
+#   https://www.wgtn.ac.nz/lals/resources/academicwordlist
+# 以 # 开头为注释，每行一个词。
+analyse
+approach
+area
+assess
+assume
+authority
+available
+benefit
+concept
+consistent
+constitute
+context
+contract
+create
+data
+define
+derive
+distribute
+economy
+environment
+establish
+estimate
+evident
+export
+factor
+finance
+formula
+function
+identify
+income
+indicate
+individual
+interpret
+involve
+issue
+labour
+legal
+legislate
+major
+method
+occur
+percent
+period
+policy
+principle
+proceed
+process
+require
+research
+respond
+role
+section
+sector
+significant
+similar
+source
+specific
+structure
+theory
+vary

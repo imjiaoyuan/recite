@@ -1,0 +1,59 @@
+{
+  "lists": [
+    {
+      "id": "zk",
+      "name": "中考",
+      "desc": "初中毕业",
+      "file": "zk.json"
+    },
+    {
+      "id": "gk",
+      "name": "高考",
+      "desc": "高考",
+      "file": "gk.json"
+    },
+    {
+      "id": "cet4",
+      "name": "四级",
+      "desc": "CET-4",
+      "file": "cet4.json"
+    },
+    {
+      "id": "cet6",
+      "name": "六级",
+      "desc": "CET-6",
+      "file": "cet6.json"
+    },
+    {
+      "id": "ky",
+      "name": "考研",
+      "desc": "研究生入学考试",
+      "file": "ky.json"
+    },
+    {
+      "id": "toefl",
+      "name": "托福",
+      "desc": "TOEFL",
+      "file": "toefl.json"
+    },
+    {
+      "id": "ielts",
+      "name": "雅思",
+      "desc": "IELTS",
+      "file": "ielts.json"
+    },
+    {
+      "id": "gre",
+      "name": "GRE",
+      "desc": "GRE",
+      "file": "gre.json"
+    },
+    {
+      "id": "awl",
+      "name": "读博",
+      "desc": "学术英语 AWL",
+      "file": "awl.json"
+    }
+  ],
+  "source": "ECDICT + AWL"
+}

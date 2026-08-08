@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>recite · 背单词</title>
+    <link rel="icon" href="favicon.ico" />
+    <meta name="theme-color" content="#2e4dd6" />
+    <!-- Apply theme before paint to avoid flash. -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('recite:meta');
+          var theme = raw ? JSON.parse(raw).theme || 'auto' : 'auto';
+          var dark = theme === 'dark' || (theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
