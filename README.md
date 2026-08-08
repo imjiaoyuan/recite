@@ -1,6 +1,21 @@
 # recite
 
-A self-hosted English vocabulary trainer. Static site, no backend, works offline as a PWA.
+> Let's memorize some words.
+
+## Screenshots
+
+<div align="center">
+  <img src="assets/desktop-home.webp" width="380" alt="Desktop: list picker">
+  <img src="assets/desktop-study.webp" width="380" alt="Desktop: study">
+</div>
+
+<br>
+
+<div align="center">
+  <img src="assets/mobile-home.webp" width="200" alt="Mobile: list picker">
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/mobile-study.webp" width="200" alt="Mobile: study">
+</div>
 
 ## Features
 
