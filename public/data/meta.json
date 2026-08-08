@@ -61,7 +61,7 @@
       "name": "读博",
       "desc": "学术英语 AWL",
       "file": "awl.json",
-      "count": 60
+      "count": 570
     }
   ],
   "source": "ECDICT + AWL"
