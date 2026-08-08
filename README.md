@@ -28,7 +28,7 @@ Built from [ECDICT](https://github.com/skywind3000/ECDICT), frequency-sorted (mo
 | TOEFL | 6,974 |
 | IELTS | 5,040 |
 | GRE | 7,504 |
-| 读博 AWL (Academic) | 60 |
+| 读博 AWL (Academic) | 570 |
 
 Example sentences from [Tatoeba](https://tatoeba.org) (~92% coverage).
 
