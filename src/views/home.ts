@@ -1,6 +1,6 @@
 import { h, toast } from '../ui';
 import { getState, getMeta, setMeta, exportData, importData, getDifficult } from '../store';
-import { loadMeta, loadList } from '../data';
+import { loadMeta } from '../data';
 import { t, listName, listDesc, setLang } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
@@ -134,12 +134,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     const grid = h('div', { class: 'grid' });
 
     for (const list of m.lists) {
-      let total = 0;
-      try {
-        total = (await loadList(list.id)).length;
-      } catch (e) {
-        /* non-fatal */
-      }
+      const total = list.count;
       const s = listStats(list.id, total);
       const next = Math.min(meta.dailyLimit || 50, Math.max(0, total - s.started));
       const pct = total ? Math.round((s.started / total) * 100) : 0;

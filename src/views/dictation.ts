@@ -110,7 +110,7 @@ export default function dictation([listId]: string[], { navigate }: Ctx): ViewRe
         h('button', { class: 'btn primary big', onclick: next }, t('spell.next'), h('i', { class: 'fa-solid fa-arrow-right' })),
       );
       const nb = area.querySelector('.btn.primary.big') as HTMLElement | null;
-      if (nb) nb.focus();
+      if (nb) setTimeout(() => nb.focus(), 0);
       return;
     }
 

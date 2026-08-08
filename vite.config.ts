@@ -28,8 +28,14 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico,webmanifest,json}'],
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico,webmanifest}'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/data\/.*\.json$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'recite-data' },
+          },
+        ],
       },
     }),
   ],

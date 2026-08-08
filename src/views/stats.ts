@@ -1,7 +1,7 @@
 // Statistics: per-list progress, current streak, and an activity heatmap.
 import { h } from '../ui';
 import { getState, getActivity } from '../store';
-import { loadMeta, loadList } from '../data';
+import { loadMeta } from '../data';
 import { t, listName } from '../i18n';
 import type { Ctx, ViewResult } from '../types';
 
@@ -107,12 +107,7 @@ export default function stats(_params: string[], { navigate }: Ctx): ViewResult 
     let totalDue = 0;
     el.append(h('div', { class: 'section-label', style: 'margin-top:24px' }, t('stats.section')));
     for (const list of m.lists) {
-      let total = 0;
-      try {
-        total = (await loadList(list.id)).length;
-      } catch (e) {
-        /* skip */
-      }
+      const total = list.count;
       const prefix = list.id + ':';
       let started = 0;
       let due = 0;

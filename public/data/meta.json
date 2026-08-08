@@ -4,55 +4,64 @@
       "id": "zk",
       "name": "中考",
       "desc": "初中毕业",
-      "file": "zk.json"
+      "file": "zk.json",
+      "count": 1603
     },
     {
       "id": "gk",
       "name": "高考",
       "desc": "高考",
-      "file": "gk.json"
+      "file": "gk.json",
+      "count": 3677
     },
     {
       "id": "cet4",
       "name": "四级",
       "desc": "CET-4",
-      "file": "cet4.json"
+      "file": "cet4.json",
+      "count": 3849
     },
     {
       "id": "cet6",
       "name": "六级",
       "desc": "CET-6",
-      "file": "cet6.json"
+      "file": "cet6.json",
+      "count": 5407
     },
     {
       "id": "ky",
       "name": "考研",
       "desc": "研究生入学考试",
-      "file": "ky.json"
+      "file": "ky.json",
+      "count": 4801
     },
     {
       "id": "toefl",
       "name": "托福",
       "desc": "TOEFL",
-      "file": "toefl.json"
+      "file": "toefl.json",
+      "count": 6974
     },
     {
       "id": "ielts",
       "name": "雅思",
       "desc": "IELTS",
-      "file": "ielts.json"
+      "file": "ielts.json",
+      "count": 5040
     },
     {
       "id": "gre",
       "name": "GRE",
       "desc": "GRE",
-      "file": "gre.json"
+      "file": "gre.json",
+      "count": 7504
     },
     {
       "id": "awl",
       "name": "读博",
       "desc": "学术英语 AWL",
-      "file": "awl.json"
+      "file": "awl.json",
+      "count": 60
     }
   ],
   "source": "ECDICT + AWL"

@@ -23,6 +23,7 @@ export interface ListMeta {
   name: string;
   desc: string;
   file: string;
+  count: number;
 }
 
 export interface Meta {

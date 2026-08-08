@@ -43,6 +43,8 @@ const META = {
   source: 'ECDICT + AWL',
 };
 
+const counts = {};
+
 // Collapse real newlines and literal \n into a single-line separator.
 function oneLine(s, sep) {
   return (s || '').replace(/\r?\n/g, sep).replace(/\\n/g, sep).trim();
@@ -59,8 +61,20 @@ function slim(row) {
   };
 }
 
+function countExisting(file) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(OUT, file), 'utf8')).length;
+  } catch {
+    return 0;
+  }
+}
+
 function writeMeta() {
-  fs.writeFileSync(path.join(OUT, 'meta.json'), JSON.stringify(META, null, 2) + '\n');
+  const meta = {
+    lists: META.lists.map((l) => ({ ...l, count: counts[l.id] ?? countExisting(l.file) })),
+    source: 'ECDICT + AWL',
+  };
+  fs.writeFileSync(path.join(OUT, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
   console.log('meta.json written');
 }
 
@@ -79,6 +93,7 @@ function buildAwl(byWord) {
     return row ? slim(row) : { word: w, phonetic: '', pos: '', translation: '', definition: '' };
   });
   fs.writeFileSync(path.join(OUT, 'awl.json'), JSON.stringify(arr));
+  counts.awl = arr.length;
   console.log(`awl: ${arr.length} words`);
 }
 
@@ -121,14 +136,16 @@ async function buildFromEcdict() {
       .sort((a, b) => (a.f - b.f) || a.e.word.localeCompare(b.e.word))
       .map((d) => d.e);
     fs.writeFileSync(path.join(OUT, `${l.id}.json`), JSON.stringify(arr));
+    counts[l.id] = arr.length;
     console.log(`${l.id}: ${arr.length} words`);
   }
   buildAwl(byWord);
 }
 
 fs.mkdirSync(OUT, { recursive: true });
-writeMeta();
-buildFromEcdict().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+buildFromEcdict()
+  .then(() => writeMeta())
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
