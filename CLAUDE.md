@@ -39,9 +39,11 @@ There is **no test framework** in this project — do not invent test commands.
 
 **SM-2 spaced repetition** (`src/srs.ts`): `schedule(listId, word, q)` takes quality `q` (0–5), advances the interval/ease-factor, and persists. **`q < 3` resets** (reps→0, interval→1 day); `q >= 3` advances. Grade buttons map to q values (study view: 1/3/4/5). `st.diff` flags difficult words (set true on q<3, cleared on q>=4).
 
-**Session building** (`src/session.ts`): SRS-due reviews first, then the next unseen words up to `dailyLimit` ("personal progression" — continues where you left off). Both buckets are shuffled.
+**Session building** (`src/session.ts`): SRS-due reviews first, then the next unseen words up to `dailyLimit` ("personal progression" — continues where you left off). Both buckets are shuffled. `dailyLimit` caps **new words only** — every due review is always queued, so a backlog day can exceed the limit.
 
 **Data loading** (`src/data.ts`): word lists / meta / sentences are lazy-`fetch`ed from `public/data/*.json` with an in-memory `Map` cache. URLs are built from `import.meta.env.BASE_URL` (so subpath deploys work — `base: './'` in `vite.config.ts`). **Sentences are optional**: `loadSentences()` returns `{}` on failure and callers degrade gracefully. Never assume sentences exist.
+
+**Data freshness / caching** — two caches sit in front of the JSON, and both bite when you rebuild `public/data/`: (1) the Workbox service worker serves `/data/*.json` `StaleWhileRevalidate` (`vite.config.ts`, cache name `recite-data`), so deployed users see the *previous* version first and the new one only on the next load; (2) `src/data.ts` holds its `Map` cache for the whole page lifetime, so an already-open tab won't pick up changes until reload. The "Download offline" button (`cacheAllData()` in `src/pwa.ts`) is a manual prefetch that warms the `recite-data` SW cache by fetching every data file once. The service worker is only registered in `preview`/production, never in `npm run dev`.
 
 **i18n** (`src/i18n.ts`): homegrown `t(key, vars)` with zh/en dictionaries and `{var}` interpolation. `setLang()` persists and **reloads the page** (no reactive re-render). Word *content* is never translated; localized list names/descriptions come from `listName()`/`listDesc()`. New UI strings must be added to **both** the `zh` and `en` dicts.
 

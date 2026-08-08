@@ -187,6 +187,8 @@ a { color: var(--accent); }
 .btn.big { width: 100%; padding: 14px; font-size: 15px; }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 8px 10px; }
 .btn.ghost:hover { color: var(--ink); background: var(--surface-2); }
+.btn.danger { color: var(--again); border-color: color-mix(in srgb, var(--again) 30%, var(--line)); background: transparent; }
+.btn.danger:hover { background: color-mix(in srgb, var(--again) 10%, transparent); border-color: var(--again); }
 
 /* ---- List grid ---- */
 .grid {
@@ -398,10 +400,36 @@ a { color: var(--accent); }
 
 /* ---- Responsive ---- */
 @media (max-width: 540px) {
-  #app { padding: 22px 14px 60px; }
-  .brand h1 { font-size: 28px; }
-  .word { font-size: 32px; }
-  .grades { grid-template-columns: repeat(2, 1fr); }
+  #app { padding: 18px 12px 56px; }
+  .brand h1 { font-size: 26px; }
+  .brand .tag { display: none; } /* long uppercase tagline wraps into a mess on narrow screens */
+  .head-actions { gap: 6px; }   /* breathing room now that the tag is gone */
+
+  /* Home: compact list cards so more fit per screen. */
+  .grid { gap: 10px; }
+  .list-card { padding: 13px; gap: 9px; border-radius: 13px; }
+  .list-name { font-size: 19px; }
+  .list-desc { display: none; } /* name alone is enough on narrow screens */
+  .badge { font-size: 11px; padding: 2px 7px; }
+  .list-actions .icon-only { padding: 9px; font-size: 15px; }
+  .data-row .btn { padding: 9px 8px; font-size: 13px; }
+
+  /* Study: tighten sizes and cap the meaning block so the grade buttons
+     never get pushed off-screen, even for words with huge entries (e.g. "go"). */
+  .word { font-size: 28px; }
+  .entry { padding: 18px 16px 16px; }
+  .say { margin-top: 10px; }
+  .meaning {
+    margin-top: 14px;
+    padding-top: 14px;
+    max-height: calc(100vh - 380px);
+    max-height: calc(100dvh - 380px); /* dvh accounts for mobile browser chrome; 380 reserves room for topbar + word head + grade buttons */
+    overflow-y: auto;
+  }
+  .trans { font-size: 17px; }
+  .grades { grid-template-columns: repeat(4, 1fr); gap: 6px; } /* 1×4 saves a row vs 2×2 */
+  .grade { padding: 10px 0; font-size: 14px; }
+
   .stat-num { width: 92px; }
 }
 
@@ -455,7 +483,7 @@ a { color: var(--accent); }
 .settings-panel.open { display: block; animation: rise 0.16s ease; }
 .settings-panel .dd { margin: 0 8px 10px 0; }
 .data-row { display: flex; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
-.data-row .btn { flex: 1; }
+.data-row .btn { flex: 1; white-space: nowrap; }
 
 /* ---- Heatmap ---- */
 .heatmap-card { padding: 18px; }

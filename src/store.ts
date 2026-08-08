@@ -115,3 +115,11 @@ export function importData(jsonStr: string): void {
   if (data.meta) write(META_KEY, { ...defaultMeta, ...data.meta });
   if (data.activity) write(ACT_KEY, data.activity);
 }
+
+// ---- Reset ----
+
+// Wipe learning progress (SRS state + activity). Settings (meta) are kept.
+export function clearAll(): void {
+  localStorage.removeItem(STATE_KEY);
+  localStorage.removeItem(ACT_KEY);
+}

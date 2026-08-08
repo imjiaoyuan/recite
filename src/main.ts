@@ -1,9 +1,10 @@
 import './style';
 import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
-import { loadVoices } from './speech';
+import { loadVoices, warmup } from './speech';
 import { initTheme } from './theme';
 import { initI18n } from './i18n';
+import { loadMeta } from './data';
 import home from './views/home';
 import study from './views/study';
 import spell from './views/spell';
@@ -55,10 +56,25 @@ function render(): void {
 }
 
 window.addEventListener('hashchange', render);
-window.addEventListener('DOMContentLoaded', () => {
+
+function hideSplash(): void {
+  const boot = document.getElementById('boot');
+  if (!boot) return;
+  boot.classList.add('hide');
+  setTimeout(() => boot.remove(), 400);
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
   initI18n();
   initTheme();
   loadVoices();
+  warmup();
+  try {
+    await loadMeta(); // preload the list catalog so the home grid renders in one pass
+  } catch (e) {
+    /* home view surfaces its own load error */
+  }
+  hideSplash();
   if (!location.hash) location.hash = '#/';
   render();
 });

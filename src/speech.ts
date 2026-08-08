@@ -44,3 +44,28 @@ export function speak(text: string, lang = 'en-US'): void {
   u.rate = 0.95;
   synth.speak(u);
 }
+
+// Prime the TTS engine so the first real speak() isn't delayed by a cold start.
+// speechSynthesis.speak() without user activation is deprecated, so we defer the
+// priming to the first user gesture — which will almost always happen before the
+// user taps a word to hear it.
+let warmed = false;
+function prime(): void {
+  if (warmed || !isSpeechSupported()) return;
+  warmed = true;
+  try {
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  } catch (e) {
+    /* ignore — best effort */
+  }
+}
+let armed = false;
+export function warmup(): void {
+  if (armed || !isSpeechSupported()) return;
+  armed = true;
+  const opts: AddEventListenerOptions = { once: true };
+  window.addEventListener('pointerdown', prime, opts);
+  window.addEventListener('keydown', prime, opts);
+}

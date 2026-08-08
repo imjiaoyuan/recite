@@ -1,5 +1,5 @@
 import { h, toast } from '../ui';
-import { getState, getMeta, setMeta, exportData, importData, getDifficult } from '../store';
+import { getState, getMeta, setMeta, exportData, importData, getDifficult, clearAll } from '../store';
 import { loadMeta } from '../data';
 import { t, listName, listDesc, setLang } from '../i18n';
 import { setTheme } from '../theme';
@@ -65,8 +65,9 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
   fileInput.addEventListener('change', onImport);
 
   async function doOffline(btn: HTMLElement): Promise<void> {
+    const label = btn.querySelector('.btn-label');
     btn.setAttribute('disabled', '');
-    btn.textContent = t('pwa.installing');
+    if (label) label.textContent = t('pwa.installing');
     try {
       const bytes = await cacheAllData();
       toast(t('pwa.offlineDone', { mb: (bytes / 1048576).toFixed(1) }));
@@ -74,8 +75,14 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
       toast(t('data.importFail'));
     } finally {
       btn.removeAttribute('disabled');
-      btn.textContent = t('pwa.offline');
+      if (label) label.textContent = t('pwa.offline');
     }
+  }
+  function doClear(): void {
+    if (!confirm(t('data.clearConfirm'))) return;
+    clearAll();
+    toast(t('data.cleared'));
+    setTimeout(() => location.reload(), 700);
   }
   async function doInstall(): Promise<void> {
     const ok = await promptInstall();
@@ -103,8 +110,12 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
       h('button', { class: 'btn', onclick: () => fileInput.click() }, h('i', { class: 'fa-solid fa-upload' }), t('data.import')),
     ),
     h('div', { class: 'data-row' },
-      h('button', { class: 'btn', onclick: (e: Event) => doOffline(e.currentTarget as HTMLElement) }, h('i', { class: 'fa-solid fa-cloud-arrow-down' }), t('pwa.offline')),
+      h('button', { class: 'btn', onclick: (e: Event) => doOffline(e.currentTarget as HTMLElement) },
+        h('i', { class: 'fa-solid fa-cloud-arrow-down' }), h('span', { class: 'btn-label' }, t('pwa.offline'))),
       h('button', { class: 'btn', onclick: doInstall }, h('i', { class: 'fa-solid fa-circle-down' }), t('pwa.install')),
+    ),
+    h('div', { class: 'data-row' },
+      h('button', { class: 'btn danger', onclick: doClear }, h('i', { class: 'fa-solid fa-trash-can' }), t('data.clear')),
     ),
   );
 

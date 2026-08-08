@@ -17,8 +17,27 @@
         } catch (e) {}
       })();
     </script>
+    <!-- Splash shown before the JS bundle loads; faded out by main.ts once data is ready. -->
+    <style>
+      #boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#faf8f4;color:#1f1d1a;transition:opacity .35s ease}
+      html.dark #boot{background:#141318;color:#ece9e3}
+      #boot.hide{opacity:0;pointer-events:none}
+      #boot .wm{font-family:'Iowan Old Style','Palatino Linotype',Palatino,'Songti SC','Noto Serif SC',serif;font-weight:600;font-size:42px;letter-spacing:-.5px}
+      #boot .sub{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a756b;font-family:ui-monospace,Menlo,Consolas,monospace}
+      html.dark #boot .sub{color:#9c968c}
+      #boot .spin{width:26px;height:26px;border:3px solid rgba(46,77,214,.18);border-top-color:#2e4dd6;border-radius:50%;animation:bspin .8s linear infinite}
+      html.dark #boot .spin{border-color:rgba(138,160,255,.18);border-top-color:#8aa0ff}
+      @keyframes bspin{to{transform:rotate(360deg)}}
+      @media (prefers-reduced-motion:reduce){#boot .spin{animation-duration:.001ms}}
+    </style>
   </head>
   <body>
+    <div id="boot">
+      <div class="wm">recite</div>
+      <div class="sub" id="boot-sub">loading…</div>
+      <div class="spin"></div>
+    </div>
+    <script>(function(){try{document.getElementById('boot-sub').textContent=((navigator.language||'en').toLowerCase().indexOf('zh')===0?'加载中…':'loading…');}catch(e){}})();</script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
