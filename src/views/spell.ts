@@ -8,10 +8,16 @@ import { t } from '../i18n';
 import type { Ctx, ViewResult, WordEntry, Example } from '../types';
 
 // Blank the target word out of an example sentence (case-insensitive, whole word).
+// The per-word regex is compiled once and cached (a card can render many times).
+const clozeReCache = new Map<string, RegExp>();
 function cloze(sentence: string, word: string): string {
   if (!sentence) return '';
-  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return sentence.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '_____');
+  let re = clozeReCache.get(word);
+  if (!re) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    clozeReCache.set(word, (re = new RegExp(`\\b${escaped}\\b`, 'gi')));
+  }
+  return sentence.replace(re, '_____');
 }
 
 interface Answered {
@@ -178,11 +184,7 @@ export default function spell([listId]: string[], { navigate }: Ctx): ViewResult
     const list = await loadList(listId);
     const s = buildSession(list, listId, getMeta().dailyLimit || 50);
     queue = s.due.concat(s.fresh);
-    try {
-      sentences = await loadSentences();
-    } catch (e) {
-      /* optional */
-    }
+    sentences = await loadSentences();
     render();
   })().catch((err: Error) => {
     clearTimer();

@@ -39,7 +39,7 @@ function targetWords() {
       const arr = JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8'));
       for (const e of arr) if (e.word) set.add(e.word.toLowerCase());
     } catch (e) {
-      /* ignore */
+      console.warn(`[sentences] skipping unreadable list file "${f}"`, e);
     }
   }
   return set;

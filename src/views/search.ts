@@ -6,20 +6,41 @@ import { speak } from '../speech';
 import { getMeta } from '../store';
 import type { Ctx, ViewResult, WordEntry } from '../types';
 
-let index: (WordEntry & { listId: string })[] | null = null;
+interface Indexed {
+  word: string;
+  wordLc: string;
+  transLc: string;
+  phonetic: string;
+  translation: string;
+  listId: string;
+}
 
-async function getIndex(): Promise<(WordEntry & { listId: string })[]> {
+let index: Indexed[] | null = null;
+
+// Build once and keep: word content is immutable, so the index never goes stale.
+// Lowercase forms are precomputed so the per-keystroke scan never recomputes them.
+async function getIndex(): Promise<Indexed[]> {
   if (index) return index;
   const meta = await loadMeta();
-  const all: (WordEntry & { listId: string })[] = [];
+  const all: Indexed[] = [];
   for (const l of meta.lists) {
     let list: WordEntry[];
     try {
       list = await loadList(l.id);
     } catch (e) {
+      console.warn(`[search] skipping list "${l.id}" — load failed`, e);
       continue;
     }
-    for (const e of list) all.push({ ...e, listId: l.id });
+    for (const e of list) {
+      all.push({
+        word: e.word,
+        wordLc: e.word.toLowerCase(),
+        transLc: (e.translation || '').toLowerCase(),
+        phonetic: e.phonetic || '',
+        translation: e.translation || '',
+        listId: l.id,
+      });
+    }
   }
   index = all;
   return all;
@@ -50,9 +71,9 @@ export default function search(_params: string[], { navigate }: Ctx): ViewResult
     }
     const idx = await getIndex();
     const ql = q.toLowerCase();
-    const matches: (WordEntry & { listId: string })[] = [];
+    const matches: Indexed[] = [];
     for (const e of idx) {
-      if (e.word.toLowerCase().includes(ql) || (e.translation || '').toLowerCase().includes(ql)) {
+      if (e.wordLc.includes(ql) || e.transLc.includes(ql)) {
         matches.push(e);
         if (matches.length >= 80) break;
       }

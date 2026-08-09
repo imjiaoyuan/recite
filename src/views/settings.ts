@@ -1,18 +1,13 @@
 // Settings page: voice, daily limit, spell timer, theme, language, TTS engine,
 // plus data backup, offline download, and reset.
 import { h, toast } from '../ui';
-import { getMeta, setMeta, exportData, importData, clearAll } from '../store';
+import { getMeta, setMeta, exportData, importData, clearAll, todayStr } from '../store';
 import { t, setLang } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
 import { enableKokoro, onKokoroStatus } from '../speech';
 import type { Ctx, ViewResult } from '../types';
-
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 export default function settings(_params: string[], { navigate }: Ctx): ViewResult {
   const meta = getMeta();
@@ -39,6 +34,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
         toast(t('data.imported'));
         setTimeout(() => location.reload(), 800);
       } catch (e) {
+        console.warn('[settings] import failed', e);
         toast(t('data.importFail'));
       }
     };
@@ -54,7 +50,8 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       const bytes = await cacheAllData();
       toast(t('pwa.offlineDone', { mb: (bytes / 1048576).toFixed(1) }));
     } catch (e) {
-      toast(t('data.importFail'));
+      console.warn('[settings] offline prefetch failed', e);
+      toast(t('pwa.offlineFail'));
     } finally {
       btn.removeAttribute('disabled');
       if (label) label.textContent = t('pwa.offline');

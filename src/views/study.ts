@@ -5,15 +5,8 @@ import { buildSession } from '../session';
 import { schedule } from '../srs';
 import { speak } from '../speech';
 import { t } from '../i18n';
-import type { Ctx, ViewResult, Grade, WordEntry, Example, WordState } from '../types';
-
-// Grade buttons -> SM-2 quality q (q < 3 resets).
-const GRADES: Grade[] = [
-  { label: 'grade.again', q: 1, cls: 'again' },
-  { label: 'grade.hard', q: 3, cls: 'hard' },
-  { label: 'grade.good', q: 4, cls: 'good' },
-  { label: 'grade.easy', q: 5, cls: 'easy' },
-];
+import { GRADES } from '../grades';
+import type { Ctx, ViewResult, WordEntry, Example, WordState } from '../types';
 
 export default function study([listId]: string[], { navigate }: Ctx): ViewResult {
   const el = h('div', { class: 'page page-focus' });
@@ -163,11 +156,7 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
     const list = await loadList(listId);
     const s = buildSession(list, listId, getMeta().dailyLimit || 50);
     queue = s.due.concat(s.fresh);
-    try {
-      sentences = await loadSentences();
-    } catch (e) {
-      /* sentences are optional */
-    }
+    sentences = await loadSentences();
     render();
   })().catch((err: Error) => {
     area.innerHTML = '';

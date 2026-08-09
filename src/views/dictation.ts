@@ -180,11 +180,7 @@ export default function dictation([listId]: string[], { navigate }: Ctx): ViewRe
     const list = await loadList(listId);
     const s = buildSession(list, listId, getMeta().dailyLimit || 50);
     queue = s.due.concat(s.fresh);
-    try {
-      sentences = await loadSentences();
-    } catch (e) {
-      /* optional */
-    }
+    sentences = await loadSentences();
     render();
   })().catch((err: Error) => {
     clearTimer();

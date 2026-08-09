@@ -5,14 +5,8 @@ import { loadList, loadSentences } from '../data';
 import { schedule } from '../srs';
 import { speak } from '../speech';
 import { t } from '../i18n';
-import type { Ctx, ViewResult, Grade, WordEntry, Example } from '../types';
-
-const GRADES: Grade[] = [
-  { label: 'grade.again', q: 1, cls: 'again' },
-  { label: 'grade.hard', q: 3, cls: 'hard' },
-  { label: 'grade.good', q: 4, cls: 'good' },
-  { label: 'grade.easy', q: 5, cls: 'easy' },
-];
+import { GRADES } from '../grades';
+import type { Ctx, ViewResult, WordEntry, Example } from '../types';
 
 export default function drill(_params: string[], { navigate }: Ctx): ViewResult {
   const el = h('div', { class: 'page page-focus' });
@@ -132,6 +126,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
       try {
         list = await loadList(listId);
       } catch (e) {
+        console.warn(`[drill] skipping list "${listId}" — load failed`, e);
         continue;
       }
       const want = new Set(byList[listId]);
@@ -139,11 +134,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
     }
     shuffle(q0);
     queue = q0;
-    try {
-      sentences = await loadSentences();
-    } catch (e) {
-      /* optional */
-    }
+    sentences = await loadSentences();
     render();
   })().catch((err: Error) => {
     area.innerHTML = '';

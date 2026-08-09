@@ -73,8 +73,8 @@ export function onKokoroStatus(cb: ((s: Status) => void) | null): void {
 function report(s: Status): void {
   try {
     statusCb?.(s);
-  } catch {
-    /* listener errors are non-fatal */
+  } catch (e) {
+    console.warn('[speech] kokoro status listener threw', e);
   }
 }
 
@@ -119,7 +119,13 @@ async function playBlob(blob: Blob): Promise<void> {
   const cleanup = (): void => URL.revokeObjectURL(url);
   a.addEventListener('ended', cleanup, { once: true });
   a.addEventListener('error', cleanup, { once: true });
-  await a.play();
+  try {
+    await a.play();
+  } catch (e) {
+    cleanup(); // play() never started (e.g. autoplay blocked) — revoke now or it leaks.
+    console.warn('[speech] audio play rejected (autoplay policy?)', e);
+    throw e; // let speak() handle it (its catch already warns).
+  }
 }
 
 // Speak `text`. Web Speech first; if no usable system engine and the user has enabled the
@@ -160,8 +166,8 @@ function prime(): void {
     const u = new SpeechSynthesisUtterance(' ');
     u.volume = 0;
     window.speechSynthesis.speak(u);
-  } catch {
-    /* ignore — best effort */
+  } catch (e) {
+    console.warn('[speech] warmup prime failed', e);
   }
 }
 let armed = false;

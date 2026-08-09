@@ -1,23 +1,8 @@
 import { h } from '../ui';
-import { getState, getMeta, getDifficult } from '../store';
+import { getMeta, getDifficult, statsByList } from '../store';
 import { loadMeta } from '../data';
 import { t, listName, listDesc } from '../i18n';
 import type { Ctx, ViewResult } from '../types';
-
-function listStats(listId: string, total: number): { started: number; due: number } {
-  const state = getState();
-  const prefix = listId + ':';
-  let started = 0;
-  let due = 0;
-  const now = Date.now();
-  for (const k in state) {
-    if (k.startsWith(prefix) && state[k]) {
-      started++;
-      if (state[k].due <= now) due++;
-    }
-  }
-  return { started, due };
-}
 
 function iconBtn(icon: string, title: string, onclick: () => void): HTMLElement {
   return h('button', { class: 'btn ghost icon-only', title, onclick }, h('i', { class: `fa-solid ${icon}` }));
@@ -51,9 +36,10 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     el.removeChild(loading);
     const grid = h('div', { class: 'grid' });
 
+    const byList = statsByList();
     for (const list of m.lists) {
       const total = list.count;
-      const s = listStats(list.id, total);
+      const s = byList[list.id] || { started: 0, due: 0 };
       const next = Math.min(meta.dailyLimit || 50, Math.max(0, total - s.started));
       const pct = total ? (s.started / total) * 100 : 0;
 

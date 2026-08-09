@@ -90,7 +90,7 @@ function buildAwl(byWord) {
     .filter((s) => s && !s.startsWith('#'));
   const arr = heads.map((w) => {
     const row = byWord.get(w.toLowerCase());
-    return row ? slim(row) : { word: w, phonetic: '', pos: '', translation: '', definition: '' };
+    return row || { word: w, phonetic: '', pos: '', translation: '', definition: '' };
   });
   fs.writeFileSync(path.join(OUT, 'awl.json'), JSON.stringify(arr));
   counts.awl = arr.length;
@@ -104,7 +104,7 @@ async function buildFromEcdict() {
     return;
   }
   const buckets = Object.fromEntries(LISTS.map((l) => [l.id, []]));
-  const byWord = new Map(); // lowercase word -> row, for AWL lookup
+  const byWord = new Map(); // lowercase word -> slimmed row, for AWL backfill
 
   const parser = fs.createReadStream(ECDICT).pipe(
     parse({ columns: true, trim: true, relax_column_count: true, bom: true }),
@@ -116,7 +116,7 @@ async function buildFromEcdict() {
     if (n % 50000 === 0) console.log(`  scanned ${n} rows...`);
     if (!row.word) continue;
     const lw = row.word.toLowerCase();
-    if (!byWord.has(lw)) byWord.set(lw, row);
+    if (!byWord.has(lw)) byWord.set(lw, slim(row));
     const tags = (row.tag || '').split(/\s+/);
     const frq = Number(row.frq) || Infinity; // frequency rank: smaller = more common
     for (const l of LISTS) {

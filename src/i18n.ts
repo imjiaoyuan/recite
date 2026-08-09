@@ -92,9 +92,11 @@ const STRINGS: Record<string, Dict> = {
     'data.clear': '清除学习数据',
     'data.clearConfirm': '将清除全部学习进度（设置与词本选择会保留），确定继续？',
     'data.cleared': '已清除，即将刷新…',
+    'store.quotaFull': '存储空间已满，本次进度未能保存，请导出数据后清理',
     'pwa.offline': '离线下载',
     'pwa.installing': '下载中…',
     'pwa.offlineDone': '✓ 已离线可用（{mb} MB）',
+    'pwa.offlineFail': '离线下载失败，请检查网络后重试',
     'pwa.install': '安装到桌面',
     'pwa.installHint': '请从浏览器菜单选择「安装 / 添加到主屏幕」',
   },
@@ -186,9 +188,11 @@ const STRINGS: Record<string, Dict> = {
     'data.clear': 'Clear progress',
     'data.clearConfirm': 'Clear ALL learning progress? Your settings and list choice stay.',
     'data.cleared': 'Cleared — reloading…',
+    'store.quotaFull': 'Storage is full — this progress was not saved. Export and clear some data.',
     'pwa.offline': 'Download offline',
     'pwa.installing': 'Downloading…',
     'pwa.offlineDone': '✓ Ready offline ({mb} MB)',
+    'pwa.offlineFail': 'Offline download failed — check your network',
     'pwa.install': 'Install app',
     'pwa.installHint': 'Use browser menu: Install / Add to Home Screen',
   },
@@ -234,6 +238,6 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   const dict = STRINGS[current] || STRINGS.en;
   let s: string = dict[key] != null ? dict[key] : STRINGS.en[key];
   if (s == null) s = key;
-  if (vars) for (const k in vars) s = s.split(`{${k}}`).join(String(vars[k]));
+  if (vars) for (const k in vars) s = s.replaceAll(`{${k}}`, String(vars[k]));
   return s;
 }

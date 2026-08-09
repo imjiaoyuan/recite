@@ -41,6 +41,8 @@ export async function loadSentences(): Promise<Record<string, Example[]>> {
     }
     sentencesCache = (await r.json()) as Record<string, Example[]>;
   } catch (e) {
+    // Sentences are an optional enhancement: degrade to no-example mode, but log it.
+    console.warn('[data] sentences unavailable, degrading to no-example mode', e);
     sentencesCache = {};
   }
   return sentencesCache;

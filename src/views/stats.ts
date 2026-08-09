@@ -1,6 +1,6 @@
 // Statistics: per-list progress, current streak, and an activity heatmap.
 import { h } from '../ui';
-import { getState, getActivity } from '../store';
+import { getActivity, statsByList } from '../store';
 import { loadMeta } from '../data';
 import { t, listName } from '../i18n';
 import type { Ctx, ViewResult } from '../types';
@@ -21,7 +21,8 @@ function currentStreak(activity: Record<string, number>): number {
   let n = 0;
   while ((activity[keyOf(cursor)] || 0) > 0) {
     n++;
-    cursor = new Date(cursor.getTime() - DAY);
+    // Step back by calendar day, not fixed milliseconds — DST-safe.
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1);
   }
   return n;
 }
@@ -101,30 +102,21 @@ export default function stats(_params: string[], { navigate }: Ctx): ViewResult 
       ),
     );
 
-    const state = getState();
-    const now = Date.now();
+    const byList = statsByList();
     let totalSeen = 0;
     let totalDue = 0;
     el.append(h('div', { class: 'section-label', style: 'margin-top:24px' }, t('stats.section')));
     for (const list of m.lists) {
       const total = list.count;
-      const prefix = list.id + ':';
-      let started = 0;
-      let due = 0;
-      for (const k in state) {
-        if (k.startsWith(prefix) && state[k]) {
-          started++;
-          if (state[k].due <= now) due++;
-        }
-      }
-      totalSeen += started;
-      totalDue += due;
-      const pct = total ? (started / total) * 100 : 0;
+      const s = byList[list.id] || { started: 0, due: 0 };
+      totalSeen += s.started;
+      totalDue += s.due;
+      const pct = total ? (s.started / total) * 100 : 0;
       el.append(
         h('div', { class: 'stat-row' },
           h('div', { class: 'stat-name' }, listName(list.id)),
           h('div', { class: 'stat-bar progress' }, h('div', { class: 'progress-bar', style: `width:${pct}%` })),
-          h('div', { class: 'stat-num' }, t('stats.fmt', { a: started, b: total, n: due })),
+          h('div', { class: 'stat-num' }, t('stats.fmt', { a: s.started, b: total, n: s.due })),
         ),
       );
     }

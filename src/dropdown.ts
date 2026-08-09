@@ -43,24 +43,34 @@ export function dropdown({ label, options, current, onChange }: DropdownOptions)
 
   const wrap = h('div', { class: 'dd' }, trigger, menu);
   let open = false;
+  // Owns the outside-click listener's lifecycle: aborted on close, and self-cleaned
+  // if the wrap is detached while open (no leaked document listener on unmount).
+  let ac: AbortController | null = null;
 
   function paint(): void {
     menu.classList.toggle('open', open);
     wrap.classList.toggle('open', open);
     trigger.setAttribute('aria-expanded', String(open));
   }
+  function onOutside(e: MouseEvent): void {
+    if (!wrap.isConnected) {
+      ac?.abort(); // orphaned (host unmounted while open) — clean up and bail.
+      return;
+    }
+    if (!wrap.contains(e.target as Node)) close();
+  }
   function openMenu(): void {
     open = true;
     paint();
-    requestAnimationFrame(() => document.addEventListener('click', onOutside));
+    const ctrl = new AbortController();
+    ac = ctrl;
+    requestAnimationFrame(() => document.addEventListener('click', onOutside, { signal: ctrl.signal }));
   }
   function close(): void {
     open = false;
     paint();
-    document.removeEventListener('click', onOutside);
-  }
-  function onOutside(e: MouseEvent): void {
-    if (!wrap.contains(e.target as Node)) close();
+    ac?.abort();
+    ac = null;
   }
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();

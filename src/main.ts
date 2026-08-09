@@ -3,7 +3,9 @@ import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
 import { loadVoices, warmup } from './speech';
 import { initTheme } from './theme';
-import { initI18n } from './i18n';
+import { initI18n, t } from './i18n';
+import { onQuotaExceeded } from './store';
+import { toast } from './ui';
 import { loadMeta } from './data';
 import home from './views/home';
 import study from './views/study';
@@ -68,13 +70,15 @@ function hideSplash(): void {
 
 window.addEventListener('DOMContentLoaded', async () => {
   initI18n();
+  onQuotaExceeded(() => toast(t('store.quotaFull')));
   initTheme();
   loadVoices();
   warmup();
   try {
     await loadMeta(); // preload the list catalog so the home grid renders in one pass
   } catch (e) {
-    /* home view surfaces its own load error */
+    // Non-fatal: the home view renders its own load-failure message.
+    console.warn('[main] meta preload failed — home will show its own error', e);
   }
   hideSplash();
   if (!location.hash) location.hash = '#/';
