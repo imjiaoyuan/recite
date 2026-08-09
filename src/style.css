@@ -482,6 +482,10 @@ a { color: var(--accent); }
 }
 .settings-panel.open { display: block; animation: rise 0.16s ease; }
 .settings-panel .dd { margin: 0 8px 10px 0; }
+.tts-status { margin: 2px 8px 10px 0; font-size: 13px; color: var(--muted); }
+.tts-status.loading { color: var(--accent); }
+.tts-status.ready { color: var(--good); }
+.tts-status.error { color: var(--again); }
 .data-row { display: flex; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .data-row .btn { flex: 1; white-space: nowrap; }
 

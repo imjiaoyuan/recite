@@ -5,6 +5,7 @@ import { t, listName, listDesc, setLang } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
+import { enableKokoro, onKokoroStatus } from '../speech';
 import type { Ctx, ViewResult } from '../types';
 
 function todayStr(): string {
@@ -94,6 +95,17 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     panel.classList.toggle('open');
   }
 
+  // Offline TTS (kokoro) status line — shown only while/after the user opts in.
+  const ttsStatus = h('div', { class: 'tts-status', style: 'display:none' });
+  onKokoroStatus((s) => {
+    ttsStatus.style.display = '';
+    ttsStatus.className = 'tts-status ' + s.status;
+    ttsStatus.textContent =
+      s.status === 'loading' ? t('tts.downloading') :
+      s.status === 'ready' ? t('tts.ready') :
+      t('tts.failed');
+  });
+
   panel.append(
     dropdown({ label: t('set.voice'), current: meta.voice, onChange: (v) => setMeta({ voice: v }),
       options: [['en-US', t('opt.us')], ['en-GB', t('opt.gb')]] }),
@@ -105,6 +117,13 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
       options: [['auto', t('opt.auto')], ['light', t('opt.light')], ['dark', t('opt.dark')]] }),
     dropdown({ label: t('set.language'), current: meta.lang, onChange: (v) => setLang(v),
       options: [['auto', t('opt.langAuto')], ['zh', '中文'], ['en', 'English']] }),
+    dropdown({ label: t('set.ttsEngine'), current: meta.ttsEngine,
+      onChange: (v) => {
+        setMeta({ ttsEngine: v as 'system' | 'kokoro' });
+        if (v === 'kokoro') enableKokoro();
+      },
+      options: [['system', t('opt.ttsSystem')], ['kokoro', t('opt.ttsKokoro')]] }),
+    ttsStatus,
     h('div', { class: 'data-row' },
       h('button', { class: 'btn', onclick: doExport }, h('i', { class: 'fa-solid fa-download' }), t('data.export')),
       h('button', { class: 'btn', onclick: () => fileInput.click() }, h('i', { class: 'fa-solid fa-upload' }), t('data.import')),

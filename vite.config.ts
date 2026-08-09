@@ -1,11 +1,21 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath } from 'node:url';
+
+// kokoro-js ships a Node entry (imports fs/path) and a self-contained browser bundle.
+// Alias to the browser bundle so the dynamic import() in src/speech.ts loads the right one,
+// and exclude it from dep pre-bundling (esbuild chokes on the inlined ONNX/WASM references).
+const kokoroWeb = fileURLToPath(
+  new URL('./node_modules/kokoro-js/dist/kokoro.web.js', import.meta.url),
+);
 
 // base: './' keeps assets relative for GitHub Pages subpath deploys.
 export default defineConfig({
   base: './',
   server: { open: true, port: 5173 },
   build: { outDir: 'dist', sourcemap: false },
+  resolve: { alias: { 'kokoro-js': kokoroWeb } },
+  optimizeDeps: { exclude: ['kokoro-js'] },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
@@ -29,11 +39,23 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico,webmanifest}'],
+        // The kokoro engine chunk (~2 MB) is opt-in only — don't precache it for everyone
+        // (avoids the 2 MiB Workbox limit and keeps the default install lean). It's fetched
+        // on demand when the user enables offline TTS, then cached via the rule below.
+        globIgnores: ['**/kokoro.web-*.js'],
         runtimeCaching: [
           {
             urlPattern: /\/data\/.*\.json$/,
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'recite-data' },
+          },
+          {
+            urlPattern: /\/assets\/kokoro\.web-.*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'recite-kokoro',
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 90 },
+            },
           },
         ],
       },

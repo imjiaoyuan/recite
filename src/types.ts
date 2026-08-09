@@ -33,6 +33,7 @@ export interface Meta {
   spellCountdown: number;
   theme: string;
   lang: string;
+  ttsEngine: 'system' | 'kokoro';
 }
 
 export interface Session {

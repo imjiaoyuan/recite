@@ -12,6 +12,7 @@ const defaultMeta: Meta = {
   spellCountdown: 0,
   theme: 'auto',
   lang: 'auto',
+  ttsEngine: 'system',
 };
 
 function read<T>(key: string, fallback: T): T {
