@@ -56,6 +56,14 @@ export function setWordState(listId: string, word: string, st: WordState): void 
   write(STATE_KEY, s);
 }
 
+// Drop a word's SRS entry entirely — used by study's undo to return a fresh word
+// (graded by mistake) back to "unseen".
+export function removeWordState(listId: string, word: string): void {
+  const s = getState();
+  delete s[wordKey(listId, word)];
+  write(STATE_KEY, s);
+}
+
 export function getMeta(): Meta {
   return { ...defaultMeta, ...read<Partial<Meta>>(META_KEY, {}) };
 }
