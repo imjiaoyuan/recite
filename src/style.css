@@ -231,6 +231,7 @@ a { color: var(--accent); }
 }
 .badge.due { background: color-mix(in srgb, var(--again) 16%, transparent); color: var(--again); }
 .badge.new { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.badge.learned { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
 
 .progress { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .progress-bar { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s; }
@@ -471,17 +472,14 @@ a { color: var(--accent); }
 .head-actions { display: flex; gap: 4px; }
 .list-actions .icon-only { padding: 12px; font-size: 16px; }
 
-.settings-panel {
-  display: none;
+.settings {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 16px;
-  margin-bottom: 22px;
 }
-.settings-panel.open { display: block; animation: rise 0.16s ease; }
-.settings-panel .dd { margin: 0 8px 10px 0; }
+.settings .dd { margin: 0 8px 10px 0; }
 .tts-status { margin: 2px 8px 10px 0; font-size: 13px; color: var(--muted); }
 .tts-status.loading { color: var(--accent); }
 .tts-status.ready { color: var(--good); }

@@ -12,6 +12,7 @@ import dictation from './views/dictation';
 import search from './views/search';
 import drill from './views/drill';
 import stats from './views/stats';
+import settings from './views/settings';
 import type { Ctx, ViewResult } from './types';
 
 interface Route {
@@ -28,6 +29,7 @@ const routes: Route[] = [
   { re: /^#\/drill\/?$/, view: drill },
   { re: /^#\/search\/?$/, view: search },
   { re: /^#\/stats\/?$/, view: stats },
+  { re: /^#\/settings\/?$/, view: settings },
 ];
 
 let current: ViewResult | null = null;

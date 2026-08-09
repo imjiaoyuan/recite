@@ -119,7 +119,7 @@ export default function stats(_params: string[], { navigate }: Ctx): ViewResult 
       }
       totalSeen += started;
       totalDue += due;
-      const pct = total ? Math.round((started / total) * 100) : 0;
+      const pct = total ? (started / total) * 100 : 0;
       el.append(
         h('div', { class: 'stat-row' },
           h('div', { class: 'stat-name' }, listName(list.id)),
