@@ -10,6 +10,7 @@ export function buildSession(list: WordEntry[], listId: string, limit: number, n
   let freshCount = 0;
   for (const e of list) {
     const st = state[`${listId}:${e.word}`];
+    if (st?.known) continue; // already known — never queued for study
     if (!st) {
       if (freshCount < limit) {
         fresh.push(e);

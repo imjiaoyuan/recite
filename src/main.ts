@@ -15,6 +15,8 @@ import search from './views/search';
 import drill from './views/drill';
 import stats from './views/stats';
 import settings from './views/settings';
+import createList from './views/list-create';
+import listView from './views/list';
 import type { Ctx, ViewResult } from './types';
 
 interface Route {
@@ -32,6 +34,8 @@ const routes: Route[] = [
   { re: /^#\/search\/?$/, view: search },
   { re: /^#\/stats\/?$/, view: stats },
   { re: /^#\/settings\/?$/, view: settings },
+  { re: /^#\/list\/new$/, view: createList },
+  { re: /^#\/list\/([\w-]+)$/, view: listView },
 ];
 
 let current: ViewResult | null = null;

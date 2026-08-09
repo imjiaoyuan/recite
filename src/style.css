@@ -55,6 +55,7 @@ html, body {
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  scrollbar-gutter: stable; /* reserve the scrollbar gap so centered content doesn't shift between long/short pages */
 }
 
 #app {
@@ -556,4 +557,58 @@ a { color: var(--accent); }
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ---- Create custom list ---- */
+.field-label { display: block; font-size: 12px; letter-spacing: 0.04em; color: var(--muted); margin: 14px 0 6px; text-transform: uppercase; }
+.field-label:first-child { margin-top: 0; }
+.list-words { width: 100%; min-height: 220px; resize: vertical; line-height: 1.6; }
+.list-status { margin-top: 10px; font-size: 13px; min-height: 1em; }
+
+/* ---- List browser ---- */
+.list-toolbar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+}
+.chip:hover { background: var(--surface-2); }
+.chip.active { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
+.list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.list-actions .btn { padding: 7px 12px; font-size: 13px; }
+.list-sel { font-size: 12px; min-height: 1em; }
+
+.word-list { display: flex; flex-direction: column; gap: 2px; }
+.word-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.word-row:hover { background: var(--surface-2); }
+.word-row input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+.word-row.known { opacity: 0.55; }
+.word-main { display: flex; align-items: baseline; gap: 9px; flex: 1; min-width: 0; }
+.word-text { font-family: var(--serif); font-size: 17px; font-weight: 600; cursor: pointer; }
+.word-text:hover { color: var(--accent); }
+.word-pho { font-family: var(--mono); font-size: 12px; }
+.word-trans { font-size: 12px; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; flex: none; }
+.status-badge.new { background: var(--surface-2); color: var(--muted); }
+.status-badge.due { background: color-mix(in srgb, var(--again) 16%, transparent); color: var(--again); }
+.status-badge.learned { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.status-badge.known { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.status-badge.diff { background: color-mix(in srgb, var(--hard) 16%, transparent); color: var(--hard); }
+.list-more { margin: 12px auto; }
+
+@media (max-width: 540px) {
+  .word-trans { display: none; }
 }

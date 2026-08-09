@@ -8,6 +8,13 @@ export interface WordEntry {
   definition: string;
 }
 
+export interface UserList {
+  id: string;
+  name: string;
+  words: WordEntry[];
+  createdAt: number;
+}
+
 export interface WordState {
   reps: number;
   ef: number;
@@ -16,6 +23,7 @@ export interface WordState {
   seen: number;
   diff?: boolean;
   lastReviewed?: number;
+  known?: boolean;
 }
 
 export interface ListMeta {

@@ -30,7 +30,7 @@ export async function cacheAllData(): Promise<number> {
   const metaRes = await fetch(`${base}/data/meta.json`);
   if (!metaRes.ok) throw new Error(`meta.json load failed (${metaRes.status})`);
   const meta = (await metaRes.json()) as { lists: ListMeta[] };
-  const files = ['sentences.json', ...meta.lists.map((l) => l.file)];
+  const files = ['sentences.json', ...meta.lists.filter((l) => l.file).map((l) => l.file)];
   // Fetch in parallel (the browser pools ~6 per host); consume each body so the
   // service-worker runtime cache stores it.
   const fetched = await Promise.all(

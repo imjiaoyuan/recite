@@ -17,7 +17,8 @@ interface Indexed {
 
 let index: Indexed[] | null = null;
 
-// Build once and keep: word content is immutable, so the index never goes stale.
+// Build once and keep: built-in word content is immutable, so the index is stable;
+// custom-list mutations call invalidateSearchIndex() to force a rebuild.
 // Lowercase forms are precomputed so the per-keystroke scan never recomputes them.
 async function getIndex(): Promise<Indexed[]> {
   if (index) return index;
@@ -44,6 +45,11 @@ async function getIndex(): Promise<Indexed[]> {
   }
   index = all;
   return all;
+}
+
+// Custom lists are mutable — drop the cached index so the next search rebuilds it.
+export function invalidateSearchIndex(): void {
+  index = null;
 }
 
 export default function search(_params: string[], { navigate }: Ctx): ViewResult {

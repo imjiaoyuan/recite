@@ -4,11 +4,12 @@
 // bumpActivity() on every grade — no longer re-parses the whole SRS object each time.
 // Caches are invalidated on cross-tab writes (a `storage` event listener) and on
 // import/clear, so views never hold stale copies within a tab.
-import type { Meta, WordState } from './types';
+import type { ListMeta, Meta, UserList, WordEntry, WordState } from './types';
 
 const STATE_KEY = 'recite:state';
 const META_KEY = 'recite:meta';
 const ACT_KEY = 'recite:activity';
+const USER_KEY = 'recite:userlists';
 
 const defaultMeta: Meta = {
   selectedList: null,
@@ -23,6 +24,7 @@ const defaultMeta: Meta = {
 let stateCache: Record<string, WordState> | null = null;
 let metaCache: Meta | null = null;
 let actCache: Record<string, number> | null = null;
+let userListsCache: UserList[] | null = null;
 
 // Quota-exceeded is the one write failure the UI must surface (a grade would otherwise
 // be silently lost). Registered by the app shell; store.ts stays free of UI deps.
@@ -37,6 +39,7 @@ if (typeof window !== 'undefined') {
     if (e.key === STATE_KEY) stateCache = null;
     else if (e.key === META_KEY) metaCache = null;
     else if (e.key === ACT_KEY) actCache = null;
+    else if (e.key === USER_KEY) userListsCache = null;
   });
 }
 
@@ -101,6 +104,44 @@ export function removeWordState(listId: string, word: string): void {
   write(STATE_KEY, s);
 }
 
+// Bulk mark words as already-known: excluded from study, counted as learned (not due).
+// Batched — one state read + one write regardless of how many words.
+export function markKnown(listId: string, words: string[]): void {
+  if (!words.length) return;
+  const s = getState();
+  const now = Date.now();
+  for (const w of words) {
+    const key = wordKey(listId, w);
+    const prev = s[key];
+    s[key] = {
+      reps: prev?.reps ?? 0,
+      ef: prev?.ef ?? 2.5,
+      interval: prev?.interval ?? 0,
+      due: prev?.due ?? now,
+      seen: prev?.seen ?? 0,
+      known: true,
+      ...(prev?.diff != null ? { diff: prev.diff } : {}),
+      ...(prev?.lastReviewed != null ? { lastReviewed: prev.lastReviewed } : {}),
+    };
+  }
+  write(STATE_KEY, s);
+}
+
+// Reverse of markKnown. If the word was only ever bulk-marked (never studied), drop it
+// so it becomes fresh again; otherwise keep its review history and just clear the flag.
+export function unmarkKnown(listId: string, words: string[]): void {
+  if (!words.length) return;
+  const s = getState();
+  for (const w of words) {
+    const key = wordKey(listId, w);
+    const prev = s[key];
+    if (!prev) continue;
+    if ((prev.seen || 0) > 0 || prev.lastReviewed != null) s[key] = { ...prev, known: false };
+    else delete s[key];
+  }
+  write(STATE_KEY, s);
+}
+
 export function getMeta(): Meta {
   return (metaCache ??= { ...defaultMeta, ...read<Partial<Meta>>(META_KEY, {}) });
 }
@@ -132,7 +173,7 @@ export function getDifficult(): { listId: string; word: string }[] {
   const out: { listId: string; word: string }[] = [];
   for (const k in state) {
     const st = state[k];
-    if (st && st.diff) {
+    if (st && st.diff && !st.known) {
       const i = k.indexOf(':');
       out.push({ listId: k.slice(0, i), word: k.slice(i + 1) });
     }
@@ -152,9 +193,40 @@ export function statsByList(): Record<string, { started: number; due: number }> 
     const listId = i < 0 ? k : k.slice(0, i);
     const acc = (out[listId] ??= { started: 0, due: 0 });
     acc.started++;
+    if (st.known) continue; // known counts as learned, never due
     if (st.due <= now) acc.due++;
   }
   return out;
+}
+
+// ---- User-created word lists ----
+
+export function getUserLists(): UserList[] {
+  return (userListsCache ??= read<UserList[]>(USER_KEY, []));
+}
+
+// Project user lists into ListMeta shape so the home grid + stats treat them uniformly.
+export function userListsAsMeta(): ListMeta[] {
+  return getUserLists().map((u) => ({ id: u.id, name: u.name, desc: '', file: '', count: u.words.length }));
+}
+
+export function createUserList(name: string, words: WordEntry[]): string {
+  const id = `user-${Date.now().toString(36)}`;
+  const lists = getUserLists();
+  lists.push({ id, name: name.trim(), words, createdAt: Date.now() });
+  write(USER_KEY, lists);
+  return id;
+}
+
+// Delete a user list and wipe its words' SRS state in one pass each.
+export function deleteUserList(id: string): void {
+  const lists = getUserLists().filter((u) => u.id !== id);
+  userListsCache = lists;
+  write(USER_KEY, lists);
+  const s = getState();
+  const prefix = `${id}:`;
+  for (const k in s) if (k.startsWith(prefix)) delete s[k];
+  write(STATE_KEY, s);
 }
 
 // ---- Backup / restore ----
@@ -171,6 +243,7 @@ export function exportData(): string {
     state: getState(),
     meta: getMeta(),
     activity: getActivity(),
+    userlists: getUserLists(),
   });
 }
 
@@ -190,7 +263,11 @@ export function importData(jsonStr: string): void {
     asObject(data.activity, 'activity');
     write(ACT_KEY, data.activity as Record<string, number>);
   }
-  stateCache = metaCache = actCache = null;
+  if (data.userlists != null) {
+    if (!Array.isArray(data.userlists)) throw new Error('backup field "userlists" must be an array');
+    write(USER_KEY, data.userlists);
+  }
+  stateCache = metaCache = actCache = userListsCache = null;
 }
 
 // ---- Reset ----

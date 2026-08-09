@@ -20,6 +20,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
         h('span', { class: 'tag' }, t('app.subtitle')),
       ),
       h('div', { class: 'head-actions' },
+        iconBtn('fa-plus', t('home.newList'), () => navigate('#/list/new')),
         iconBtn('fa-magnifying-glass', t('home.search'), () => navigate('#/search')),
         iconBtn('fa-bolt', t('home.difficult') + (diffCount ? ` (${diffCount})` : ''), () => navigate('#/drill')),
         iconBtn('fa-chart-simple', t('home.stats'), () => navigate('#/stats')),
@@ -60,6 +61,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
             h('button', { class: 'btn primary icon-only', title: t('home.study'), onclick: () => navigate(`#/study/${list.id}`) }, h('i', { class: 'fa-solid fa-book-open' })),
             h('button', { class: 'btn icon-only', title: t('home.spell'), onclick: () => navigate(`#/spell/${list.id}`) }, h('i', { class: 'fa-solid fa-keyboard' })),
             h('button', { class: 'btn icon-only', title: t('home.dictation'), onclick: () => navigate(`#/dictation/${list.id}`) }, h('i', { class: 'fa-solid fa-headphones' })),
+            h('button', { class: 'btn icon-only', title: t('home.browse'), onclick: () => navigate(`#/list/${list.id}`) }, h('i', { class: 'fa-solid fa-list' })),
           ),
         ),
       );

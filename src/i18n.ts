@@ -1,5 +1,5 @@
 // Tiny i18n: zh / en dictionaries, auto-detect from system language.
-import { getMeta, setMeta } from './store';
+import { getMeta, setMeta, getUserLists } from './store';
 
 type Dict = Record<string, string>;
 
@@ -99,6 +99,40 @@ const STRINGS: Record<string, Dict> = {
     'pwa.offlineFail': '离线下载失败，请检查网络后重试',
     'pwa.install': '安装到桌面',
     'pwa.installHint': '请从浏览器菜单选择「安装 / 添加到主屏幕」',
+    'home.newList': '新建词本',
+    'home.browse': '浏览',
+    'list.create.title': '新建词本',
+    'list.create.name': '名称',
+    'list.create.namePh': '例如：我的生词',
+    'list.create.words': '单词（每行一个）',
+    'list.create.wordsPh': '一行一个，或直接粘贴文本',
+    'list.create.submit': '创建词本',
+    'list.create.nameRequired': '请填写词本名称',
+    'list.create.noWords': '至少输入一个单词',
+    'list.create.created': '已创建「{name}」，{found}/{total} 个词匹配到释义',
+    'list.create.loading': '加载词库中以匹配释义…',
+    'list.title': '词本',
+    'list.filterAll': '全部',
+    'list.filterNew': '新词',
+    'list.filterDue': '待复习',
+    'list.filterLearned': '已学',
+    'list.filterKnown': '已掌握',
+    'list.filterDiff': '难词',
+    'list.selectAll': '全选',
+    'list.clearSel': '清除选择',
+    'list.markKnown': '标记已掌握',
+    'list.unmarkKnown': '取消已掌握',
+    'list.selected': '已选 {n} 个',
+    'list.loadMore': '加载更多',
+    'list.empty': '这个词本没有词',
+    'list.delete': '删除词本',
+    'list.confirmDelete': '确定删除词本「{name}」？其中的学习进度也会一并清除。',
+    'list.deleted': '已删除',
+    'st.new': '新词',
+    'st.due': '待复习',
+    'st.learned': '已学',
+    'st.known': '已掌握',
+    'st.diff': '难词',
   },
   en: {
     'app.subtitle': 'English vocabulary · spaced repetition',
@@ -195,6 +229,40 @@ const STRINGS: Record<string, Dict> = {
     'pwa.offlineFail': 'Offline download failed — check your network',
     'pwa.install': 'Install app',
     'pwa.installHint': 'Use browser menu: Install / Add to Home Screen',
+    'home.newList': 'New list',
+    'home.browse': 'Browse',
+    'list.create.title': 'New list',
+    'list.create.name': 'Name',
+    'list.create.namePh': 'e.g. My words',
+    'list.create.words': 'Words (one per line)',
+    'list.create.wordsPh': 'One per line, or paste a block',
+    'list.create.submit': 'Create list',
+    'list.create.nameRequired': 'Please enter a name',
+    'list.create.noWords': 'Enter at least one word',
+    'list.create.created': 'Created "{name}" — {found}/{total} words matched',
+    'list.create.loading': 'Loading word data to match meanings…',
+    'list.title': 'List',
+    'list.filterAll': 'All',
+    'list.filterNew': 'New',
+    'list.filterDue': 'Due',
+    'list.filterLearned': 'Learned',
+    'list.filterKnown': 'Known',
+    'list.filterDiff': 'Difficult',
+    'list.selectAll': 'Select all',
+    'list.clearSel': 'Clear',
+    'list.markKnown': 'Mark known',
+    'list.unmarkKnown': 'Unmark known',
+    'list.selected': '{n} selected',
+    'list.loadMore': 'Load more',
+    'list.empty': 'No words in this list',
+    'list.delete': 'Delete list',
+    'list.confirmDelete': 'Delete list "{name}"? Its learning progress will be erased too.',
+    'list.deleted': 'Deleted',
+    'st.new': 'New',
+    'st.due': 'Due',
+    'st.learned': 'Learned',
+    'st.known': 'Known',
+    'st.diff': 'Difficult',
   },
 };
 
@@ -228,9 +296,14 @@ export function setLang(lang: string): void {
 }
 
 export function listName(id: string): string {
+  if (id.startsWith('user-')) {
+    const ul = getUserLists().find((u) => u.id === id);
+    return ul?.name || id;
+  }
   return (LIST_NAMES[current] || LIST_NAMES.en)[id] || id;
 }
 export function listDesc(id: string): string {
+  if (id.startsWith('user-')) return '';
   return (LIST_DESC[current] || LIST_DESC.en)[id] || '';
 }
 
