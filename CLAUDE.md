@@ -26,13 +26,13 @@ There is **no test framework** in this project — do not invent test commands.
 
 ## Architecture
 
-**No UI framework.** The DOM is built imperatively with a hyperscript helper `h(tag, attrs, ...children)` (`src/ui.ts`). `attrs` special-cases `class`, `html` (innerHTML), `style`, and `on*` event handlers; everything else becomes a `setAttribute`. When adding UI, use `h()` and append to a container element — match the surrounding views.
+**No UI framework.** The DOM is built imperatively with a hyperscript helper `h(tag, attrs, ...children)` (`src/ui.ts`). `attrs` special-cases `class`, `html` (innerHTML), `style`, and `on*` event handlers; everything else becomes a `setAttribute`. In both `attrs` and `children`, `null`/`undefined`/`false`/`true` are dropped — so conditional rendering (`cond && h('span')`) and boolean-style attributes (`{ disabled: isDone }`, where `false` omits the attr rather than emitting `disabled="false"`) are safe no-ops, never literal strings. When adding UI, use `h()` and append to a container element — match the surrounding views. `shuffle()` (Fisher–Yates) and `toast()` (a transient bottom banner) also live in `ui.ts`.
 
 **Hash-based router** (`src/main.ts`): an array of `{ re, view }` entries maps `location.hash` to a view function. Each **view is a function** `(params, ctx) => ViewResult` where `ViewResult = { el, cleanup? }`. The router calls the previous view's `cleanup()` before swapping, so any event listeners a view attaches to `document`/`window` must be removed in `cleanup()` (see `study.ts` keyboard handling). Navigation is `ctx.navigate('#/route')`.
 
 **State is localStorage-backed**, single source in `src/store.ts`. Three keys:
 - `recite:state` — per-word SRS state, keyed **`${listId}:${word}`** (isolated per list)
-- `recite:meta` — global settings (selected list, voice, dailyLimit, theme, lang, …)
+- `recite:meta` — global settings (selected list, voice, dailyLimit, spellCountdown, theme, lang, ttsEngine). Defaults live in `defaultMeta` in this file; to **add a setting** also extend the `Meta` interface in `src/types.ts`, wire a control in the settings UI, and add any label strings to both i18n dicts.
 - `recite:activity` — `{ 'YYYY-MM-DD': count }` for the streak + heatmap
 
 `getState()`/`getWordState()` read fresh from localStorage on every call — there is no in-memory state cache for SRS data, so views re-read rather than hold stale copies. Backup/restore lives here too: `exportData()`/`importData()` serialize all three keys; `clearAll()` wipes SRS state + activity but **keeps** settings (meta). `getDifficult()` scans all of `recite:state` for words flagged `diff` — it's how the cross-list drill view finds its queue.
