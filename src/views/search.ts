@@ -4,6 +4,7 @@ import { loadMeta, loadList } from '../data';
 import { t, listName } from '../i18n';
 import { speak } from '../speech';
 import { getMeta } from '../store';
+import { topbar } from './common';
 import type { Ctx, ViewResult, WordEntry } from '../types';
 
 interface Indexed {
@@ -55,12 +56,7 @@ export function invalidateSearchIndex(): void {
 export default function search(_params: string[], { navigate }: Ctx): ViewResult {
   const voice = getMeta().voice;
   const el = h('div', { class: 'page' });
-  el.append(
-    h('div', { class: 'topbar' },
-      h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-      h('div', { class: 'progress-info' }, t('search.title')),
-    ),
-  );
+  el.append(topbar(navigate, t('search.title')));
   const results = h('div', { class: 'search-results' });
   const input = h('input', {
     class: 'spell-input search-input',

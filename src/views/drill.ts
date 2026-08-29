@@ -3,9 +3,9 @@ import { h, shuffle } from '../ui';
 import { getDifficult, getMeta, bumpActivity } from '../store';
 import { loadList, loadSentences } from '../data';
 import { schedule } from '../srs';
-import { speak } from '../speech';
 import { t } from '../i18n';
 import { GRADES } from '../grades';
+import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
 import type { Ctx, ViewResult, WordEntry, Example } from '../types';
 
 export default function drill(_params: string[], { navigate }: Ctx): ViewResult {
@@ -16,17 +16,10 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
   let sentences: Record<string, Example[]> = {};
   const session = { total: 0, ok: 0 };
 
-  const topbar = h('div', { class: 'topbar' },
-    h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-    h('div', { class: 'progress-info' }, t('drill.title')),
-  );
-  const area = h('div', { class: 'card-area' });
-  el.append(topbar, area);
+  const bar = topbar(navigate, t('drill.title'));
+  const area = h('div', { class: 'card-area' }, loadingEl());
+  el.append(bar, area);
 
-  function updateProgress(): void {
-    const pi = topbar.querySelector('.progress-info');
-    if (pi) pi.textContent = `${Math.min(idx, queue.length)} / ${queue.length}`;
-  }
   function drawDone(): void {
     area.innerHTML = '';
     area.append(
@@ -42,36 +35,16 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
   }
 
   function render(): void {
-    updateProgress();
+    setProgress(bar, idx, queue.length);
     if (idx >= queue.length) return drawDone();
     const e = queue[idx];
     const ex: Example | undefined = (sentences[e.word.toLowerCase()] || [])[0];
     const voice = getMeta().voice;
     area.innerHTML = '';
-    const card = h('div', { class: 'entry' },
-      h('div', { class: 'entry-head' },
-        h('div', { class: 'word', onclick: () => speak(e.word, voice) }, e.word),
-        e.pos ? h('span', { class: 'pos' }, e.pos) : null,
-        h('div', { class: 'phonetic' }, e.phonetic || ''),
-        h('button', { class: 'say', onclick: () => speak(e.word, voice) }, h('i', { class: 'fa-solid fa-volume-high' }), t('study.speak')),
-      ),
-    );
+    const card = h('div', { class: 'entry' }, entryHead(e, voice));
     if (revealed) {
-      const meaning = h('div', { class: 'meaning' },
-        h('div', { class: 'trans' }, e.translation || t('noMeaning')),
-        e.definition ? h('div', { class: 'def muted' }, e.definition) : null,
-      );
-      if (ex) {
-        meaning.append(
-          h('div', { class: 'example' },
-            h('div', { class: 'ex-en', onclick: () => speak(ex.en, voice) }, ex.en),
-            ex.zh ? h('div', { class: 'ex-zh muted' }, ex.zh) : null,
-          ),
-        );
-      }
-      card.append(meaning);
-      area.append(card);
-      area.append(h('div', { class: 'grades' }, ...GRADES.map((g) => h('button', { class: `grade ${g.cls}`, onclick: () => grade(g.q) }, t(g.label)))));
+      card.append(meaningBlock(e, ex, voice));
+      area.append(card, gradesRow(grade));
     } else {
       card.append(h('div', { class: 'flip-hint' }, t('study.hint')));
       area.append(card);
@@ -107,6 +80,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
   (async () => {
     const diff = getDifficult();
     if (!diff.length) {
+      area.innerHTML = '';
       area.append(
         h('div', { class: 'done' },
           h('div', { class: 'done-title' }, t('drill.empty')),
@@ -134,11 +108,12 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
     }
     shuffle(q0);
     queue = q0;
-    sentences = await loadSentences();
+    render(); // first card as soon as the words are in
+    sentences = await loadSentences(); // examples stream in behind it, never blocking
     render();
   })().catch((err: Error) => {
     area.innerHTML = '';
-    area.append(h('div', { class: 'done' }, h('div', { class: 'done-title' }, t('loadFail')), h('div', { class: 'muted' }, err.message)));
+    area.append(loadFailEl(err));
   });
 
   return {

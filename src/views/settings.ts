@@ -7,6 +7,7 @@ import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
 import { enableKokoro, onKokoroStatus } from '../speech';
+import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
 
 export default function settings(_params: string[], { navigate }: Ctx): ViewResult {
@@ -70,7 +71,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
 
   // Offline TTS (kokoro) status line — shown only while/after the user opts in.
   const ttsStatus = h('div', { class: 'tts-status', style: 'display:none' });
-  onKokoroStatus((s) => {
+  const offStatus = onKokoroStatus((s) => {
     ttsStatus.style.display = '';
     ttsStatus.className = 'tts-status ' + s.status;
     ttsStatus.textContent =
@@ -80,15 +81,14 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
   });
 
   el.append(
-    h('div', { class: 'topbar' },
-      h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-      h('div', { class: 'progress-info' }, t('settings.title')),
-    ),
+    topbar(navigate, t('settings.title')),
     h('div', { class: 'settings' },
       dropdown({ label: t('set.voice'), current: meta.voice, onChange: (v) => setMeta({ voice: v }),
         options: [['en-US', t('opt.us')], ['en-GB', t('opt.gb')]] }),
       dropdown({ label: t('set.daily'), current: meta.dailyLimit, onChange: (v) => setMeta({ dailyLimit: Number(v) }),
         options: [[20, '20'], [30, '30'], [50, '50'], [100, '100']] }),
+      dropdown({ label: t('set.retention'), current: meta.retention, onChange: (v) => setMeta({ retention: Number(v) }),
+        options: [[0.8, t('opt.retLoose')], [0.9, t('opt.retStd')], [0.95, t('opt.retStrict')]] }),
       dropdown({ label: t('set.countdown'), current: meta.spellCountdown, onChange: (v) => setMeta({ spellCountdown: Number(v) }),
         options: [[0, t('opt.off')], [5, '5s'], [8, '8s'], [10, '10s'], [15, '15s'], [20, '20s']] }),
       dropdown({ label: t('set.theme'), current: meta.theme, onChange: (v) => setTheme(v),
@@ -119,5 +119,5 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
   );
 
   // Detach the kokoro status callback so it can't touch this DOM after navigating away.
-  return { el, cleanup: () => onKokoroStatus(null) };
+  return { el, cleanup: offStatus };
 }

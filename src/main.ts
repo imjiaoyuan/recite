@@ -1,12 +1,12 @@
 import './style';
 import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
-import { loadVoices, warmup } from './speech';
+import { loadVoices, warmup, onKokoroStatus } from './speech';
 import { initTheme } from './theme';
 import { initI18n, t } from './i18n';
-import { onQuotaExceeded } from './store';
+import { onQuotaExceeded, getMeta } from './store';
 import { toast } from './ui';
-import { loadMeta } from './data';
+import { loadMeta, loadList, loadSentences } from './data';
 import home from './views/home';
 import study from './views/study';
 import spell from './views/spell';
@@ -76,6 +76,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   initI18n();
   onQuotaExceeded(() => toast(t('store.quotaFull')));
   initTheme();
+  // Surface the offline-TTS model download (auto-triggered on first speak in
+  // browsers without system TTS) so the ~80–100 MB fetch doesn't look frozen.
+  // 'ready' is only toasted on the transition — enableKokoro()'s fast path
+  // re-reports it on every call, and a toast per pronunciation would be spam.
+  let lastKokoro: string | null = null;
+  onKokoroStatus((s) => {
+    if (s.status === 'loading') toast(t('tts.downloading'));
+    else if (s.status === 'ready' && lastKokoro !== 'ready') toast(t('tts.ready'));
+    else if (s.status === 'error') toast(t('tts.failed'));
+    lastKokoro = s.status;
+  });
   loadVoices();
   warmup();
   try {
@@ -87,4 +98,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   hideSplash();
   if (!location.hash) location.hash = '#/';
   render();
+  // Warm the heavyweight data in the background so entering a list isn't blank
+  // while it loads: every mode needs sentences.json (4+ MB), and the last-studied
+  // list is where the user almost always resumes. Returning users only (a
+  // selectedList exists) — a first-time visitor may just browse, and shouldn't
+  // have 4+ MB pulled on a metered connection before they choose to study.
+  const sel = getMeta().selectedList;
+  if (sel) {
+    loadSentences();
+    loadList(sel).catch((e) => console.warn('[main] list prefetch failed', e));
+  }
 });

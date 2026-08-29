@@ -7,6 +7,7 @@ import { loadList } from '../data';
 import { invalidateSearchIndex } from './search';
 import { speak } from '../speech';
 import { t, listName } from '../i18n';
+import { topbar, loadFailEl, loadingEl } from './common';
 import type { Ctx, ViewResult, WordEntry } from '../types';
 
 type Status = 'new' | 'due' | 'learned' | 'known' | 'diff';
@@ -45,16 +46,13 @@ function matches(r: Row, f: Filter): boolean {
 export default function listView([listId]: string[], { navigate }: Ctx): ViewResult {
   const isCustom = listId.startsWith('user-');
   const el = h('div', { class: 'page' });
-  const topbar = h('div', { class: 'topbar' },
-    h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-    h('div', { class: 'progress-info' }, listName(listId)),
-    ...(isCustom
-      ? [h('button', { class: 'btn ghost icon-only', title: t('list.delete'), onclick: onDelete }, h('i', { class: 'fa-solid fa-trash-can' }))]
-      : []),
-  );
+  const bar = topbar(navigate, listName(listId));
+  if (isCustom) {
+    bar.append(h('button', { class: 'btn ghost icon-only', title: t('list.delete'), onclick: onDelete }, h('i', { class: 'fa-solid fa-trash-can' })));
+  }
   const toolbar = h('div', { class: 'list-toolbar' });
-  const listEl = h('div', { class: 'word-list' });
-  el.append(topbar, toolbar, listEl);
+  const listEl = h('div', { class: 'word-list' }, loadingEl());
+  el.append(bar, toolbar, listEl);
 
   let list: WordEntry[] = [];
   let rows: Row[] = [];
@@ -199,7 +197,7 @@ export default function listView([listId]: string[], { navigate }: Ctx): ViewRes
     render();
   })().catch((err: Error) => {
     listEl.innerHTML = '';
-    listEl.append(h('div', { class: 'done' }, h('div', { class: 'done-title' }, t('loadFail')), h('div', { class: 'muted' }, err.message)));
+    listEl.append(loadFailEl(err));
   });
 
   return { el };

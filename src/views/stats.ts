@@ -1,13 +1,12 @@
 // Statistics: per-list progress, current streak, and an activity heatmap.
 import { h } from '../ui';
-import { getActivity, statsByList } from '../store';
+import { getActivity, statsByList, dateKey } from '../store';
 import { loadMeta } from '../data';
 import { t, listName } from '../i18n';
+import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
 
 const DAY = 86400000;
-const keyOf = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 // Monday = 0 .. Sunday = 6.
 const dowMon = (d: Date): number => (d.getDay() + 6) % 7;
 
@@ -15,11 +14,11 @@ function currentStreak(activity: Record<string, number>): number {
   const today = new Date();
   const yesterday = new Date(Date.now() - DAY);
   let cursor: Date;
-  if ((activity[keyOf(today)] || 0) > 0) cursor = today;
-  else if ((activity[keyOf(yesterday)] || 0) > 0) cursor = yesterday;
+  if ((activity[dateKey(today)] || 0) > 0) cursor = today;
+  else if ((activity[dateKey(yesterday)] || 0) > 0) cursor = yesterday;
   else return 0;
   let n = 0;
-  while ((activity[keyOf(cursor)] || 0) > 0) {
+  while ((activity[dateKey(cursor)] || 0) > 0) {
     n++;
     // Step back by calendar day, not fixed milliseconds — DST-safe.
     cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1);
@@ -48,19 +47,14 @@ function buildHeat(activity: Record<string, number>, weeks = 17): { cells: Cell[
   const cells: Cell[] = [];
   for (let i = 0; i < weeks * 7; i++) {
     const d = new Date(start.getTime() + i * DAY);
-    cells.push({ key: keyOf(d), count: activity[keyOf(d)] || 0, future: d > today });
+    cells.push({ key: dateKey(d), count: activity[dateKey(d)] || 0, future: d > today });
   }
   return { cells, weeks };
 }
 
 export default function stats(_params: string[], { navigate }: Ctx): ViewResult {
   const el = h('div', { class: 'page' });
-  el.append(
-    h('div', { class: 'topbar' },
-      h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-      h('div', { class: 'progress-info' }, t('stats.title')),
-    ),
-  );
+  el.append(topbar(navigate, t('stats.title')));
 
   const loading = h('p', { class: 'muted' }, t('home.loading'));
   el.append(loading);

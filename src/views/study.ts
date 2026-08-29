@@ -1,11 +1,11 @@
 import { h } from '../ui';
 import { getMeta, setMeta, bumpActivity, getWordState, setWordState, removeWordState } from '../store';
 import { loadList, loadSentences } from '../data';
-import { buildSession } from '../session';
+import { buildSession, dailyLimit } from '../session';
 import { schedule } from '../srs';
-import { speak } from '../speech';
 import { t } from '../i18n';
 import { GRADES } from '../grades';
+import { setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
 import type { Ctx, ViewResult, WordEntry, Example, WordState } from '../types';
 
 export default function study([listId]: string[], { navigate }: Ctx): ViewResult {
@@ -15,26 +15,41 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   let revealed = false;
   let sentences: Record<string, Example[]> = {};
   const session = { total: 0, ok: 0 };
+  // 墨墨-style in-session requeue: words graded q<4 (forgot/hard) are appended
+  // straight to the queue tail for one more pass today. Pushing onto the queue
+  // (rather than a side list merged later) keeps undo simple: the revisit is
+  // always the tail entry, so undo() can pop it. At most once per word.
+  const REVISIT_MAX = 1;
+  const revisitCount = new Map<string, number>();
+  // Every grade, oldest first — drives the unique-word totals on the done screen.
+  const gradedLog: { word: string; q: number }[] = [];
   // Snapshot of the last graded card, for one-step undo ("oops, misclick").
-  let undoLast: { word: string; prev: WordState | null; q: number } | null = null;
+  let undoLast: { word: string; prev: WordState | null; appended: boolean } | null = null;
 
   const undoBtn = h('button', { class: 'btn ghost icon-only', title: t('study.undo'), onclick: undo, style: 'display:none' }, h('i', { class: 'fa-solid fa-rotate-left' }));
-  const topbar = h('div', { class: 'topbar' },
+  const bar = h('div', { class: 'topbar' },
     h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
     h('div', { class: 'topbar-right' },
       h('div', { class: 'progress-info' }, ''),
       undoBtn,
     ),
   );
-  const area = h('div', { class: 'card-area' });
-  el.append(topbar, area);
+  const area = h('div', { class: 'card-area' }, loadingEl());
+  el.append(bar, area);
 
-  function updateProgress(): void {
-    const pi = topbar.querySelector('.progress-info');
-    if (pi) pi.textContent = `${Math.min(idx, queue.length)} / ${queue.length}`;
-  }
   function updateUndo(): void {
     undoBtn.style.display = undoLast ? '' : 'none';
+  }
+
+  // Count unique words graded this session; "mastered" = last grade was q>=3.
+  // A requeued word counts once, with its final grade deciding mastery.
+  function recomputeCounts(): void {
+    const last = new Map<string, number>();
+    for (const g of gradedLog) last.set(g.word, g.q);
+    let ok = 0;
+    for (const q of last.values()) if (q >= 3) ok++;
+    session.total = last.size;
+    session.ok = ok;
   }
 
   function drawDone(): void {
@@ -53,7 +68,7 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   }
 
   function render(): void {
-    updateProgress();
+    setProgress(bar, idx, queue.length);
     updateUndo();
     if (idx >= queue.length) return drawDone();
     const e: WordEntry = queue[idx];
@@ -61,35 +76,11 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
     const voice = getMeta().voice;
 
     area.innerHTML = '';
-    const card = h('div', { class: 'entry' },
-      h('div', { class: 'entry-head' },
-        h('div', { class: 'word', onclick: () => speak(e.word, voice) }, e.word),
-        e.pos ? h('span', { class: 'pos' }, e.pos) : null,
-        h('div', { class: 'phonetic' }, e.phonetic || ''),
-        h('button', { class: 'say', onclick: () => speak(e.word, voice) }, h('i', { class: 'fa-solid fa-volume-high' }), t('study.speak')),
-      ),
-    );
+    const card = h('div', { class: 'entry' }, entryHead(e, voice));
 
     if (revealed) {
-      const meaning = h('div', { class: 'meaning' },
-        h('div', { class: 'trans' }, e.translation || t('noMeaning')),
-        e.definition ? h('div', { class: 'def muted' }, e.definition) : null,
-      );
-      if (ex) {
-        meaning.append(
-          h('div', { class: 'example' },
-            h('div', { class: 'ex-en', onclick: () => speak(ex.en, voice) }, ex.en),
-            ex.zh ? h('div', { class: 'ex-zh muted' }, ex.zh) : null,
-          ),
-        );
-      }
-      card.append(meaning);
-      area.append(card);
-      area.append(
-        h('div', { class: 'grades' },
-          ...GRADES.map((g) => h('button', { class: `grade ${g.cls}`, onclick: () => grade(g.q) }, t(g.label))),
-        ),
-      );
+      card.append(meaningBlock(e, ex, voice));
+      area.append(card, gradesRow(grade));
     } else {
       card.append(h('div', { class: 'flip-hint' }, t('study.hint')));
       area.append(card);
@@ -103,28 +94,42 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   }
 
   function grade(q: number): void {
-    const word = queue[idx].word;
+    const e = queue[idx];
+    const word = e.word;
     const prev = getWordState(listId, word); // snapshot before schedule overwrites it
     schedule(listId, word, q);
     bumpActivity(1);
-    session.total++;
-    if (q >= 3) session.ok++;
-    undoLast = { word, prev, q };
+    gradedLog.push({ word, q });
+    recomputeCounts();
+    // Unsure answers (q<4) requeue at the queue tail — once per word.
+    let appended = false;
+    if (q < 4 && (revisitCount.get(word) || 0) < REVISIT_MAX) {
+      queue.push(e);
+      revisitCount.set(word, (revisitCount.get(word) || 0) + 1);
+      appended = true;
+    }
+    undoLast = { word, prev, appended };
     idx++;
     revealed = false;
     render();
   }
 
   // Revert the last grade: restore the pre-grade SRS state, step back one card,
-  // and undo the session/activity counters so stats stay honest.
+  // and undo the session/activity counters so stats stay honest. If that grade
+  // had requeued the word, drop the still-pending revisit too.
   function undo(): void {
     if (!undoLast) return;
-    const { word, prev, q } = undoLast;
+    const { word, prev, appended } = undoLast;
     if (prev) setWordState(listId, word, prev);
     else removeWordState(listId, word);
     bumpActivity(-1);
-    session.total--;
-    if (q >= 3) session.ok--;
+    gradedLog.pop();
+    recomputeCounts();
+    if (appended) {
+      // The revisit is still the queue tail (nothing was graded since).
+      queue.pop();
+      revisitCount.set(word, (revisitCount.get(word) || 1) - 1);
+    }
     idx--;
     revealed = true; // it was revealed before grading — let them re-grade immediately
     undoLast = null; // single-step undo
@@ -154,13 +159,14 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   (async () => {
     setMeta({ selectedList: listId });
     const list = await loadList(listId);
-    const s = buildSession(list, listId, getMeta().dailyLimit || 50);
+    const s = buildSession(list, listId, dailyLimit());
     queue = s.due.concat(s.fresh);
-    sentences = await loadSentences();
+    render(); // first card as soon as the list is in
+    sentences = await loadSentences(); // examples stream in behind it, never blocking
     render();
   })().catch((err: Error) => {
     area.innerHTML = '';
-    area.append(h('div', { class: 'done' }, h('div', { class: 'done-title' }, t('loadFail')), h('div', { class: 'muted' }, err.message)));
+    area.append(loadFailEl(err));
   });
 
   return {

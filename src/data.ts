@@ -1,4 +1,7 @@
-// Lazy-load word lists / meta / sentences, with caching.
+// Lazy-load word lists / meta / sentences, with caching. The cache holds the
+// in-flight PROMISE, not the resolved value: a view entered while a boot
+// prefetch is still running joins the same request instead of starting a
+// duplicate download. Failed requests are dropped from the cache so they retry.
 import type { ListMeta, WordEntry, Example } from './types';
 import { getUserLists, userListsAsMeta } from './store';
 
@@ -8,30 +11,36 @@ function url(file: string): string {
   return `${base}/data/${file}`;
 }
 
-const cache = new Map<string, unknown>();
+const cache = new Map<string, Promise<unknown>>();
 
-export async function loadMeta(): Promise<{ lists: ListMeta[]; source?: string }> {
-  let catalog = cache.get('meta') as { lists: ListMeta[]; source?: string } | undefined;
-  if (!catalog) {
-    const r = await fetch(url('meta.json'));
-    if (!r.ok) throw new Error(`meta.json load failed (${r.status})`);
-    catalog = (await r.json()) as { lists: ListMeta[]; source?: string };
-    cache.set('meta', catalog);
+// Store the promise, but drop it again if it rejects so a later call retries.
+function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
+  let p = cache.get(key) as Promise<T> | undefined;
+  if (!p) {
+    p = load();
+    cache.set(key, p);
+    p.catch(() => cache.delete(key));
   }
-  // Merge user lists fresh on every call — they live in localStorage, not the fetch cache.
-  return { lists: [...catalog.lists, ...userListsAsMeta()], source: catalog.source };
+  return p;
 }
 
-export async function loadList(id: string): Promise<WordEntry[]> {
+export function loadMeta(): Promise<{ lists: ListMeta[]; source?: string }> {
+  // Merge user lists fresh on every call — they live in localStorage, not the fetch cache.
+  return cached('meta', async () => {
+    const r = await fetch(url('meta.json'));
+    if (!r.ok) throw new Error(`meta.json load failed (${r.status})`);
+    return (await r.json()) as { lists: ListMeta[]; source?: string };
+  }).then((catalog) => ({ lists: [...catalog.lists, ...userListsAsMeta()], source: catalog.source }));
+}
+
+export function loadList(id: string): Promise<WordEntry[]> {
   const ul = getUserLists().find((u) => u.id === id);
-  if (ul) return ul.words; // custom list — read fresh from store, never the fetch cache
-  const key = 'list:' + id;
-  if (cache.has(key)) return cache.get(key) as WordEntry[];
-  const r = await fetch(url(`${id}.json`));
-  if (!r.ok) throw new Error(`list ${id} load failed (${r.status})`);
-  const list = (await r.json()) as WordEntry[];
-  cache.set(key, list);
-  return list;
+  if (ul) return Promise.resolve(ul.words); // custom list — read fresh from store, never the fetch cache
+  return cached<WordEntry[]>('list:' + id, async () => {
+    const r = await fetch(url(`${id}.json`));
+    if (!r.ok) throw new Error(`list ${id} load failed (${r.status})`);
+    return (await r.json()) as WordEntry[];
+  });
 }
 
 let wordIndex: Map<string, WordEntry> | null = null;
@@ -54,22 +63,19 @@ export async function getWordIndex(): Promise<Map<string, WordEntry>> {
   return idx;
 }
 
-let sentencesCache: Record<string, Example[]> | null = null;
-
-// Sentences are optional: return {} when missing so callers degrade gracefully.
-export async function loadSentences(): Promise<Record<string, Example[]>> {
-  if (sentencesCache !== null) return sentencesCache;
-  try {
-    const r = await fetch(url('sentences.json'));
-    if (!r.ok) {
-      sentencesCache = {};
-      return sentencesCache;
+// Sentences are optional: resolve to {} when missing so callers degrade gracefully.
+// Unlike the caches above, a sentences failure stays resolved ({}): retrying a
+// 4+ MB optional fetch on every view would be worse than running without examples.
+export function loadSentences(): Promise<Record<string, Example[]>> {
+  return cached('sentences', async () => {
+    try {
+      const r = await fetch(url('sentences.json'));
+      if (!r.ok) return {};
+      return (await r.json()) as Record<string, Example[]>;
+    } catch (e) {
+      // Sentences are an optional enhancement: degrade to no-example mode, but log it.
+      console.warn('[data] sentences unavailable, degrading to no-example mode', e);
+      return {};
     }
-    sentencesCache = (await r.json()) as Record<string, Example[]>;
-  } catch (e) {
-    // Sentences are an optional enhancement: degrade to no-example mode, but log it.
-    console.warn('[data] sentences unavailable, degrading to no-example mode', e);
-    sentencesCache = {};
-  }
-  return sentencesCache;
+  });
 }
