@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 // kokoro-js ships a Node entry (imports fs/path) and a self-contained browser bundle.
 // Alias to the browser bundle so the dynamic import() in src/speech.ts loads the right one,
-// and exclude it from dep pre-bundling (esbuild chokes on the inlined ONNX/WASM references).
+// and exclude it from dep pre-bundling (its inlined ONNX/WASM references trip up pre-bundling).
 const kokoroWeb = fileURLToPath(
   new URL('./node_modules/kokoro-js/dist/kokoro.web.js', import.meta.url),
 );

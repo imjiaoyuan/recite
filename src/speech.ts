@@ -47,16 +47,38 @@ function isWebSpeechUsable(lang: string): boolean {
   return cachedVoices.some((v) => v.lang && v.lang.toLowerCase().startsWith(prefix));
 }
 
-function speakViaWebSpeech(text: string, lang: string): void {
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  const v = pickVoice(lang);
-  if (v) u.voice = v;
-  u.rate = 0.95;
-  u.onerror = (e) => console.warn('[speech] Web Speech error', e.error);
-  synth.speak(u);
+// Speak via the system engine. Resolves true if the utterance was accepted
+// (ended or timed out without an error); false if the engine errored, so the
+// caller can fall back to the offline engine. Broken WebViews sometimes fire
+// neither onend nor onerror, so we optimistically resolve true on timeout —
+// otherwise a silently-failing engine would trigger double speech.
+function speakViaWebSpeech(text: string, lang: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    const v = pickVoice(lang);
+    if (v) u.voice = v;
+    u.rate = 0.95;
+    let settled = false;
+    const finish = (ok: boolean): void => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    u.onend = () => finish(true);
+    u.onerror = (e) => {
+      // 'canceled'/'interrupted' mean a newer speak() called synth.cancel() and
+      // took over — not an engine failure, so don't fall back to kokoro on top
+      // of the utterance that superseded us (that would double-speak).
+      if (e.error === 'canceled' || e.error === 'interrupted') return finish(true);
+      console.warn('[speech] Web Speech error', e.error);
+      finish(false);
+    };
+    synth.speak(u);
+    setTimeout(() => finish(true), 6000);
+  });
 }
 
 // ---- kokoro fallback ----
@@ -65,16 +87,24 @@ const KOKORO_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 let kokoro: KokoroTTS | null = null;
 let kokoroPromise: Promise<void> | null = null;
 type Status = { status: 'loading' | 'ready' | 'error'; message?: string };
-let statusCb: ((s: Status) => void) | null = null;
+type StatusListener = (s: Status) => void;
+const statusListeners = new Set<StatusListener>();
 
-export function onKokoroStatus(cb: ((s: Status) => void) | null): void {
-  statusCb = cb;
+// Register a status listener; returns an unsubscribe. Multiple listeners may
+// coexist (settings page status line + the global download toast in main.ts).
+export function onKokoroStatus(cb: StatusListener): () => void {
+  statusListeners.add(cb);
+  return () => {
+    statusListeners.delete(cb);
+  };
 }
 function report(s: Status): void {
-  try {
-    statusCb?.(s);
-  } catch (e) {
-    console.warn('[speech] kokoro status listener threw', e);
+  for (const cb of statusListeners) {
+    try {
+      cb(s);
+    } catch (e) {
+      console.warn('[speech] kokoro status listener threw', e);
+    }
   }
 }
 
@@ -128,30 +158,32 @@ async function playBlob(blob: Blob): Promise<void> {
   }
 }
 
-// Speak `text`. Web Speech first; if no usable system engine and the user has enabled the
-// offline engine, synthesize via kokoro. Fire-and-forget from click handlers.
+// Speak `text`. System TTS first, unless the user prefers the offline engine
+// outright (`ttsEngine: 'kokoro'`). When system TTS is missing (e.g. Via /
+// other WebViews expose speechSynthesis but have no engine → empty voices) or
+// errors out, fall back to kokoro automatically — no opt-in needed. First use
+// downloads the ~80–100 MB model; the service worker caches it afterwards.
+// Best-effort: never throws, fire-and-forget from click handlers.
 export async function speak(text: string, lang = 'en-US'): Promise<void> {
   if (!text) return;
-  if (isWebSpeechUsable(lang)) {
-    speakViaWebSpeech(text, lang);
-    return;
+  // Voices may not be populated yet on a cold load (PWA resume straight into an
+  // auto-playing view) — wait once for the probe before judging system TTS
+  // unusable, or we'd needlessly trigger the offline model download.
+  if (!cachedVoices.length) await loadVoices();
+  const preferOffline = getMeta().ttsEngine === 'kokoro';
+  if (isWebSpeechUsable(lang) && !preferOffline) {
+    if (await speakViaWebSpeech(text, lang)) return;
+    // System engine errored — fall through to the offline fallback.
   }
-  if (getMeta().ttsEngine === 'kokoro') {
-    try {
-      if (!kokoro && !kokoroPromise) enableKokoro();
-      const tts = await getKokoro();
-      if (!tts) return;
-      const out = await tts.generate(text, { voice: pickKokoroVoice(lang) });
-      await playBlob(out.toBlob());
-      return;
-    } catch (e) {
-      console.warn('[speech] kokoro speak failed', e);
-      return;
-    }
+  try {
+    await enableKokoro();
+    const tts = await getKokoro();
+    if (!tts) return; // load failed — enableKokoro already reported the error status
+    const out = await tts.generate(text, { voice: pickKokoroVoice(lang) });
+    await playBlob(out.toBlob());
+  } catch (e) {
+    console.warn('[speech] kokoro speak failed', e);
   }
-  console.warn(
-    `[speech] no usable TTS engine for "${text}". System TTS unavailable — enable offline TTS in settings.`,
-  );
 }
 
 // Prime the TTS engine so the first real speak() isn't delayed by a cold start.
