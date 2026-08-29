@@ -1,6 +1,7 @@
 import { h } from '../ui';
-import { getMeta, getDifficult, statsByList } from '../store';
+import { getDifficult, statsByList } from '../store';
 import { loadMeta } from '../data';
+import { newToday } from '../session';
 import { t, listName, listDesc } from '../i18n';
 import type { Ctx, ViewResult } from '../types';
 
@@ -9,7 +10,6 @@ function iconBtn(icon: string, title: string, onclick: () => void): HTMLElement 
 }
 
 export default function home(_params: string[], { navigate }: Ctx): ViewResult {
-  const meta = getMeta();
   const el = h('div', { class: 'page' });
   const diffCount = getDifficult().length;
 
@@ -41,7 +41,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     for (const list of m.lists) {
       const total = list.count;
       const s = byList[list.id] || { started: 0, due: 0 };
-      const next = Math.min(meta.dailyLimit || 50, Math.max(0, total - s.started));
+      const next = newToday(s.due, total - s.started);
       const pct = total ? (s.started / total) * 100 : 0;
 
       grid.append(

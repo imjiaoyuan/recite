@@ -17,13 +17,18 @@ export interface UserList {
 
 export interface WordState {
   reps: number;
-  ef: number;
-  interval: number;
-  due: number;
+  ef: number; // legacy SM-2 field, unused by FSRS (kept for old backups)
+  interval: number; // days
+  due: number; // ms epoch
   seen: number;
   diff?: boolean;
   lastReviewed?: number;
   known?: boolean;
+  // FSRS memory state
+  s?: number; // stability (days)
+  d?: number; // difficulty (1..10)
+  l?: number; // lapses
+  state?: number; // ts-fsrs State enum value
 }
 
 export interface ListMeta {
@@ -42,6 +47,7 @@ export interface Meta {
   theme: string;
   lang: string;
   ttsEngine: 'system' | 'kokoro';
+  retention: number; // FSRS target retention (0.8 / 0.9 / 0.95)
 }
 
 export interface Session {

@@ -19,6 +19,7 @@ const defaultMeta: Meta = {
   theme: 'auto',
   lang: 'auto',
   ttsEngine: 'system',
+  retention: 0.9,
 };
 
 let stateCache: Record<string, WordState> | null = null;
@@ -73,9 +74,14 @@ function write(key: string, val: unknown): void {
   }
 }
 
-export function todayStr(): string {
-  const d = new Date();
+// YYYY-MM-DD for any Date (local time). todayStr() below and the stats heatmap
+// share this formatter.
+export function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function todayStr(): string {
+  return dateKey(new Date());
 }
 
 function wordKey(listId: string, word: string): string {
@@ -105,7 +111,9 @@ export function removeWordState(listId: string, word: string): void {
 }
 
 // Bulk mark words as already-known: excluded from study, counted as learned (not due).
-// Batched — one state read + one write regardless of how many words.
+// Batched — one state read + one write regardless of how many words. A studied
+// word keeps its full state (including the FSRS memory model) with only the
+// flag flipped, so unmarking resumes exactly where it left off.
 export function markKnown(listId: string, words: string[]): void {
   if (!words.length) return;
   const s = getState();
@@ -113,16 +121,9 @@ export function markKnown(listId: string, words: string[]): void {
   for (const w of words) {
     const key = wordKey(listId, w);
     const prev = s[key];
-    s[key] = {
-      reps: prev?.reps ?? 0,
-      ef: prev?.ef ?? 2.5,
-      interval: prev?.interval ?? 0,
-      due: prev?.due ?? now,
-      seen: prev?.seen ?? 0,
-      known: true,
-      ...(prev?.diff != null ? { diff: prev.diff } : {}),
-      ...(prev?.lastReviewed != null ? { lastReviewed: prev.lastReviewed } : {}),
-    };
+    s[key] = prev
+      ? { ...prev, known: true }
+      : { reps: 0, ef: 2.5, interval: 0, due: now, seen: 0, known: true };
   }
   write(STATE_KEY, s);
 }
@@ -227,6 +228,8 @@ export function deleteUserList(id: string): void {
   const prefix = `${id}:`;
   for (const k in s) if (k.startsWith(prefix)) delete s[k];
   write(STATE_KEY, s);
+  // Stop the boot prefetch from 404-ing on the deleted list forever.
+  if (getMeta().selectedList === id) setMeta({ selectedList: null });
 }
 
 // ---- Backup / restore ----
