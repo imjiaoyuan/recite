@@ -1,4 +1,4 @@
-// Build 6 slim word-list JSONs from ECDICT CSV + AWL.
+// Build the per-list word JSONs (ECDICT tags) + AWL from ECDICT CSV.
 //
 // Usage:
 //   1) Download ecdict.csv from https://github.com/skywind3000/ECDICT
