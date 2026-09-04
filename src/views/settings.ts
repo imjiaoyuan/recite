@@ -1,4 +1,4 @@
-// Settings page: voice, daily limit, spell timer, theme, language, TTS engine,
+// Settings page: voice, daily limit, spell timer, theme, language,
 // plus data backup, offline download, and reset.
 import { h, toast } from '../ui';
 import { getMeta, setMeta, exportData, importData, clearAll, todayStr } from '../store';
@@ -6,7 +6,6 @@ import { t, setLang } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
-import { enableKokoro, onKokoroStatus } from '../speech';
 import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
 
@@ -69,17 +68,6 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
     if (!ok && !canInstall()) toast(t('pwa.installHint'));
   }
 
-  // Offline TTS (kokoro) status line — shown only while/after the user opts in.
-  const ttsStatus = h('div', { class: 'tts-status', style: 'display:none' });
-  const offStatus = onKokoroStatus((s) => {
-    ttsStatus.style.display = '';
-    ttsStatus.className = 'tts-status ' + s.status;
-    ttsStatus.textContent =
-      s.status === 'loading' ? t('tts.downloading') :
-      s.status === 'ready' ? t('tts.ready') :
-      t('tts.failed');
-  });
-
   el.append(
     topbar(navigate, t('settings.title')),
     h('div', { class: 'settings' },
@@ -95,13 +83,6 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
         options: [['auto', t('opt.auto')], ['light', t('opt.light')], ['dark', t('opt.dark')]] }),
       dropdown({ label: t('set.language'), current: meta.lang, onChange: (v) => setLang(v),
         options: [['auto', t('opt.langAuto')], ['zh', '中文'], ['en', 'English']] }),
-      dropdown({ label: t('set.ttsEngine'), current: meta.ttsEngine,
-        onChange: (v) => {
-          setMeta({ ttsEngine: v as 'system' | 'kokoro' });
-          if (v === 'kokoro') enableKokoro();
-        },
-        options: [['system', t('opt.ttsSystem')], ['kokoro', t('opt.ttsKokoro')]] }),
-      ttsStatus,
       h('div', { class: 'data-row' },
         h('button', { class: 'btn', onclick: doExport }, h('i', { class: 'fa-solid fa-download' }), t('data.export')),
         h('button', { class: 'btn', onclick: () => fileInput.click() }, h('i', { class: 'fa-solid fa-upload' }), t('data.import')),
@@ -118,6 +99,5 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
     fileInput,
   );
 
-  // Detach the kokoro status callback so it can't touch this DOM after navigating away.
-  return { el, cleanup: offStatus };
+  return { el };
 }

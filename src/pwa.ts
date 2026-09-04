@@ -41,3 +41,19 @@ export async function cacheAllData(): Promise<number> {
   await Promise.all(fetched.map((x) => x.body));
   return fetched.reduce((sum, x) => sum + x.len, 0);
 }
+
+// Installs that once shipped the kokoro offline-TTS fallback left multi-MB
+// caches behind (the ~100 MB model among them). Wipe them; best-effort.
+export async function purgeLegacyCaches(): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  try {
+    const names = await caches.keys();
+    await Promise.all(
+      names
+        .filter((n) => n === 'recite-kokoro' || n === 'kokoro-voices' || n === 'transformers-cache')
+        .map((n) => caches.delete(n)),
+    );
+  } catch (e) {
+    console.warn('[pwa] legacy cache purge failed', e);
+  }
+}

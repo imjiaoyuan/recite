@@ -1,10 +1,7 @@
-// Pronunciation. Two layers:
-//   1. Web Speech API (system TTS) — primary path when the browser has a usable engine.
-//   2. kokoro-js (Kokoro-82M neural TTS, runs locally via WASM) — optional fallback for
-//      browsers with no system TTS (e.g. Via). Opt-in via settings; model is fetched from
-//      Hugging Face on first use (~80–100 MB) and then cached, so it works offline afterward.
+// Pronunciation via the Web Speech API. Best-effort by design: browsers
+// without a usable engine (e.g. Via and other WebView shells) get a silent
+// no-op, so never assume audio plays.
 import { getMeta } from './store';
-import type { KokoroTTS } from 'kokoro-js';
 
 function isSpeechSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -47,11 +44,8 @@ function isWebSpeechUsable(lang: string): boolean {
   return cachedVoices.some((v) => v.lang && v.lang.toLowerCase().startsWith(prefix));
 }
 
-// Speak via the system engine. Resolves true if the utterance was accepted
-// (ended or timed out without an error); false if the engine errored, so the
-// caller can fall back to the offline engine. Broken WebViews sometimes fire
-// neither onend nor onerror, so we optimistically resolve true on timeout —
-// otherwise a silently-failing engine would trigger double speech.
+// Broken WebViews sometimes fire neither onend nor onerror, so we optimistically
+// resolve true on timeout — silence beats an error toast for every tap.
 function speakViaWebSpeech(text: string, lang: string): Promise<boolean> {
   return new Promise((resolve) => {
     const synth = window.speechSynthesis;
@@ -70,8 +64,7 @@ function speakViaWebSpeech(text: string, lang: string): Promise<boolean> {
     u.onend = () => finish(true);
     u.onerror = (e) => {
       // 'canceled'/'interrupted' mean a newer speak() called synth.cancel() and
-      // took over — not an engine failure, so don't fall back to kokoro on top
-      // of the utterance that superseded us (that would double-speak).
+      // took over — not an engine failure.
       if (e.error === 'canceled' || e.error === 'interrupted') return finish(true);
       console.warn('[speech] Web Speech error', e.error);
       finish(false);
@@ -81,157 +74,17 @@ function speakViaWebSpeech(text: string, lang: string): Promise<boolean> {
   });
 }
 
-// ---- kokoro fallback ----
-
-const KOKORO_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
-let kokoro: KokoroTTS | null = null;
-let kokoroPromise: Promise<void> | null = null;
-type Status = { status: 'loading' | 'ready' | 'error'; message?: string };
-type StatusListener = (s: Status) => void;
-const statusListeners = new Set<StatusListener>();
-
-// Register a status listener; returns an unsubscribe. Multiple listeners may
-// coexist (settings page status line + the global download toast in main.ts).
-export function onKokoroStatus(cb: StatusListener): () => void {
-  statusListeners.add(cb);
-  return () => {
-    statusListeners.delete(cb);
-  };
-}
-function report(s: Status): void {
-  for (const cb of statusListeners) {
-    try {
-      cb(s);
-    } catch (e) {
-      console.warn('[speech] kokoro status listener threw', e);
-    }
-  }
-}
-
-// kokoro-js fetches the model, tokenizer, and voice files from huggingface.co,
-// which is unreachable from mainland China. Probe direct access once; if it
-// fails, rewrite every HF URL to the hf-mirror.com reverse proxy and remember
-// the choice so later loads skip the probe.
-const HF_ORIGIN = 'https://huggingface.co';
-const HF_MIRROR = 'https://hf-mirror.com';
-const HF_MIRROR_KEY = 'recite:hfmirror';
-
-let mirrorInstalled = false;
-function installMirrorFetch(): void {
-  if (mirrorInstalled) return;
-  mirrorInstalled = true;
-  const orig = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : '';
-    return url.startsWith(HF_ORIGIN + '/')
-      ? orig(HF_MIRROR + url.slice(HF_ORIGIN.length), init)
-      : orig(input, init);
-  };
-}
-
-// Route HF traffic direct or through the mirror. Returns true when mirrored.
-async function routeHf(): Promise<boolean> {
-  if (localStorage.getItem(HF_MIRROR_KEY) === '1') {
-    installMirrorFetch();
-    return true;
-  }
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 6000);
-  try {
-    const r = await fetch(`${HF_ORIGIN}/api/models/${KOKORO_MODEL}`, { signal: ctrl.signal, cache: 'no-store' });
-    if (!r.ok) throw new Error(`probe status ${r.status}`);
-    return false; // direct works
-  } catch (e) {
-    console.warn('[speech] huggingface.co unreachable, routing through hf-mirror.com', e);
-    localStorage.setItem(HF_MIRROR_KEY, '1');
-    installMirrorFetch();
-    return true;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Begin (idempotent) model download + init. Resolves once ready; safe to call repeatedly.
-let usedMirror = false;
-export function enableKokoro(): Promise<void> {
-  if (kokoro) {
-    report({ status: 'ready' });
-    return Promise.resolve();
-  }
-  if (kokoroPromise) return kokoroPromise;
-  kokoroPromise = (async () => {
-    report({ status: 'loading' });
-    usedMirror = await routeHf();
-    const mod = await import('kokoro-js');
-    const tts = await mod.KokoroTTS.from_pretrained(KOKORO_MODEL, {
-      dtype: 'q8',
-      device: 'wasm',
-    });
-    kokoro = tts;
-    report({ status: 'ready' });
-  })().catch((e: unknown) => {
-    kokoroPromise = null; // allow retry on failure
-    // A mirrored download that still failed: drop the flag so the next attempt
-    // re-probes (the network may have changed, e.g. a VPN came on).
-    if (usedMirror) localStorage.removeItem(HF_MIRROR_KEY);
-    const message = e instanceof Error ? e.message : String(e);
-    report({ status: 'error', message });
-    console.warn('[speech] kokoro load failed', e);
-  });
-  return kokoroPromise;
-}
-
-async function getKokoro(): Promise<KokoroTTS | null> {
-  if (kokoro) return kokoro;
-  if (kokoroPromise) await kokoroPromise;
-  return kokoro; // null if the load failed
-}
-
-function pickKokoroVoice(lang: string): 'af_heart' | 'bf_emma' {
-  return lang && lang.toLowerCase().startsWith('en-gb') ? 'bf_emma' : 'af_heart';
-}
-
-async function playBlob(blob: Blob): Promise<void> {
-  const url = URL.createObjectURL(blob);
-  const a = new Audio(url);
-  const cleanup = (): void => URL.revokeObjectURL(url);
-  a.addEventListener('ended', cleanup, { once: true });
-  a.addEventListener('error', cleanup, { once: true });
-  try {
-    await a.play();
-  } catch (e) {
-    cleanup(); // play() never started (e.g. autoplay blocked) — revoke now or it leaks.
-    console.warn('[speech] audio play rejected (autoplay policy?)', e);
-    throw e; // let speak() handle it (its catch already warns).
-  }
-}
-
-// Speak `text`. System TTS first, unless the user prefers the offline engine
-// outright (`ttsEngine: 'kokoro'`). When system TTS is missing (e.g. Via /
-// other WebViews expose speechSynthesis but have no engine → empty voices) or
-// errors out, fall back to kokoro automatically — no opt-in needed. First use
-// downloads the ~80–100 MB model; the service worker caches it afterwards.
-// Best-effort: never throws, fire-and-forget from click handlers.
+// Speak `text`. Fire-and-forget from click handlers; never throws.
 export async function speak(text: string, lang = 'en-US'): Promise<void> {
   if (!text) return;
   // Voices may not be populated yet on a cold load (PWA resume straight into an
-  // auto-playing view) — wait once for the probe before judging system TTS
-  // unusable, or we'd needlessly trigger the offline model download.
+  // auto-playing view) — wait once for the probe before judging system TTS unusable.
   if (!cachedVoices.length) await loadVoices();
-  const preferOffline = getMeta().ttsEngine === 'kokoro';
-  if (isWebSpeechUsable(lang) && !preferOffline) {
-    if (await speakViaWebSpeech(text, lang)) return;
-    // System engine errored — fall through to the offline fallback.
+  if (!isWebSpeechUsable(lang)) {
+    console.warn('[speech] no usable system TTS engine — staying silent');
+    return;
   }
-  try {
-    await enableKokoro();
-    const tts = await getKokoro();
-    if (!tts) return; // load failed — enableKokoro already reported the error status
-    const out = await tts.generate(text, { voice: pickKokoroVoice(lang) });
-    await playBlob(out.toBlob());
-  } catch (e) {
-    console.warn('[speech] kokoro speak failed', e);
-  }
+  await speakViaWebSpeech(text, lang);
 }
 
 // Prime the TTS engine so the first real speak() isn't delayed by a cold start.

@@ -1,12 +1,13 @@
 import './style';
 import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
-import { loadVoices, warmup, onKokoroStatus } from './speech';
+import { loadVoices, warmup } from './speech';
 import { initTheme } from './theme';
 import { initI18n, t } from './i18n';
 import { onQuotaExceeded, getMeta } from './store';
 import { toast } from './ui';
 import { loadMeta, loadList, loadSentences } from './data';
+import { purgeLegacyCaches } from './pwa';
 import home from './views/home';
 import study from './views/study';
 import spell from './views/spell';
@@ -76,19 +77,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   initI18n();
   onQuotaExceeded(() => toast(t('store.quotaFull')));
   initTheme();
-  // Surface the offline-TTS model download (auto-triggered on first speak in
-  // browsers without system TTS) so the ~80–100 MB fetch doesn't look frozen.
-  // 'ready' is only toasted on the transition — enableKokoro()'s fast path
-  // re-reports it on every call, and a toast per pronunciation would be spam.
-  let lastKokoro: string | null = null;
-  onKokoroStatus((s) => {
-    if (s.status === 'loading') toast(t('tts.downloading'));
-    else if (s.status === 'ready' && lastKokoro !== 'ready') toast(t('tts.ready'));
-    else if (s.status === 'error') toast(t('tts.failed'));
-    lastKokoro = s.status;
-  });
   loadVoices();
   warmup();
+  purgeLegacyCaches(); // free the multi-MB kokoro leftovers from older installs
   try {
     await loadMeta(); // preload the list catalog so the home grid renders in one pass
   } catch (e) {

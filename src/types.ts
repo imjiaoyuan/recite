@@ -46,8 +46,9 @@ export interface Meta {
   spellCountdown: number;
   theme: string;
   lang: string;
-  ttsEngine: 'system' | 'kokoro';
   retention: number; // FSRS target retention (0.8 / 0.9 / 0.95)
+  // ttsEngine ('system' | 'kokoro') existed while the offline-TTS fallback did;
+  // stored values from old installs/backups are tolerated and ignored.
 }
 
 export interface Session {
