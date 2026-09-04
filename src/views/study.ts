@@ -5,7 +5,7 @@ import { buildSession, dailyLimit } from '../session';
 import { schedule } from '../srs';
 import { t } from '../i18n';
 import { GRADES } from '../grades';
-import { setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
+import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
 import type { Ctx, ViewResult, WordEntry, Example, WordState } from '../types';
 
 export default function study([listId]: string[], { navigate }: Ctx): ViewResult {
@@ -27,13 +27,7 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   let undoLast: { word: string; prev: WordState | null; appended: boolean } | null = null;
 
   const undoBtn = h('button', { class: 'btn ghost icon-only', title: t('study.undo'), onclick: undo, style: 'display:none' }, h('i', { class: 'fa-solid fa-rotate-left' }));
-  const bar = h('div', { class: 'topbar' },
-    h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-    h('div', { class: 'topbar-right' },
-      h('div', { class: 'progress-info' }, ''),
-      undoBtn,
-    ),
-  );
+  const bar = topbar(navigate, '', [undoBtn]);
   const area = h('div', { class: 'card-area' }, loadingEl());
   el.append(bar, area);
 

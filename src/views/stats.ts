@@ -40,7 +40,8 @@ interface Cell {
   future: boolean;
 }
 
-function buildHeat(activity: Record<string, number>, weeks = 17): { cells: Cell[]; weeks: number } {
+function buildHeat(activity: Record<string, number>): { cells: Cell[]; weeks: number } {
+  const weeks = 17;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(today.getTime() - (weeks - 1) * 7 * DAY - dowMon(today) * DAY);

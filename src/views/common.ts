@@ -6,10 +6,13 @@ import { speak } from '../speech';
 import { GRADES } from '../grades';
 import type { Ctx, WordEntry, Example } from '../types';
 
-export function topbar(navigate: Ctx['navigate'], title = ''): HTMLElement {
+// Standard topbar: back button + progress/title text, with optional extra nodes
+// (e.g. study's undo button) grouped on the right.
+export function topbar(navigate: Ctx['navigate'], title = '', right: unknown[] = []): HTMLElement {
+  const info = h('div', { class: 'progress-info' }, title);
   return h('div', { class: 'topbar' },
     h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-    h('div', { class: 'progress-info' }, title),
+    right.length ? h('div', { class: 'topbar-right' }, info, ...right) : info,
   );
 }
 

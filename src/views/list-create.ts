@@ -5,16 +5,14 @@ import { createUserList } from '../store';
 import { getWordIndex } from '../data';
 import { invalidateSearchIndex } from './search';
 import { t } from '../i18n';
+import { topbar } from './common';
 import type { Ctx, ViewResult, WordEntry } from '../types';
 
 export default function createList(_params: string[], { navigate }: Ctx): ViewResult {
   const el = h('div', { class: 'page page-focus' });
-  const topbar = h('div', { class: 'topbar' },
-    h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
-    h('div', { class: 'progress-info' }, t('list.create.title')),
-  );
+  const bar = topbar(navigate, t('list.create.title'));
   const area = h('div', { class: 'card-area' });
-  el.append(topbar, area);
+  el.append(bar, area);
 
   const nameInput = h('input', {
     class: 'spell-input',

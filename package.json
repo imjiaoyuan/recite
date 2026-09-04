@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "自用英语背单词静态网站：四六级 / 考研 / 托福 / 雅思 / 读博，SM-2 间隔重复 + 拼写测试 + 例句",
+  "description": "自用英语背单词静态网站：四六级 / 考研 / 托福 / 雅思 / 读博，FSRS 间隔重复 + 拼写测试 + 例句",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
