@@ -108,7 +108,51 @@ function report(s: Status): void {
   }
 }
 
+// kokoro-js fetches the model, tokenizer, and voice files from huggingface.co,
+// which is unreachable from mainland China. Probe direct access once; if it
+// fails, rewrite every HF URL to the hf-mirror.com reverse proxy and remember
+// the choice so later loads skip the probe.
+const HF_ORIGIN = 'https://huggingface.co';
+const HF_MIRROR = 'https://hf-mirror.com';
+const HF_MIRROR_KEY = 'recite:hfmirror';
+
+let mirrorInstalled = false;
+function installMirrorFetch(): void {
+  if (mirrorInstalled) return;
+  mirrorInstalled = true;
+  const orig = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : '';
+    return url.startsWith(HF_ORIGIN + '/')
+      ? orig(HF_MIRROR + url.slice(HF_ORIGIN.length), init)
+      : orig(input, init);
+  };
+}
+
+// Route HF traffic direct or through the mirror. Returns true when mirrored.
+async function routeHf(): Promise<boolean> {
+  if (localStorage.getItem(HF_MIRROR_KEY) === '1') {
+    installMirrorFetch();
+    return true;
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const r = await fetch(`${HF_ORIGIN}/api/models/${KOKORO_MODEL}`, { signal: ctrl.signal, cache: 'no-store' });
+    if (!r.ok) throw new Error(`probe status ${r.status}`);
+    return false; // direct works
+  } catch (e) {
+    console.warn('[speech] huggingface.co unreachable, routing through hf-mirror.com', e);
+    localStorage.setItem(HF_MIRROR_KEY, '1');
+    installMirrorFetch();
+    return true;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Begin (idempotent) model download + init. Resolves once ready; safe to call repeatedly.
+let usedMirror = false;
 export function enableKokoro(): Promise<void> {
   if (kokoro) {
     report({ status: 'ready' });
@@ -117,6 +161,7 @@ export function enableKokoro(): Promise<void> {
   if (kokoroPromise) return kokoroPromise;
   kokoroPromise = (async () => {
     report({ status: 'loading' });
+    usedMirror = await routeHf();
     const mod = await import('kokoro-js');
     const tts = await mod.KokoroTTS.from_pretrained(KOKORO_MODEL, {
       dtype: 'q8',
@@ -126,6 +171,9 @@ export function enableKokoro(): Promise<void> {
     report({ status: 'ready' });
   })().catch((e: unknown) => {
     kokoroPromise = null; // allow retry on failure
+    // A mirrored download that still failed: drop the flag so the next attempt
+    // re-probes (the network may have changed, e.g. a VPN came on).
+    if (usedMirror) localStorage.removeItem(HF_MIRROR_KEY);
     const message = e instanceof Error ? e.message : String(e);
     report({ status: 'error', message });
     console.warn('[speech] kokoro load failed', e);
