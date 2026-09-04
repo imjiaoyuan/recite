@@ -19,7 +19,7 @@
 
 ## Features
 
-- FSRS spaced repetition (MaiMemo's open-source scheduler), daily quota covers new + review, personal progression (continues where you left off)
+- FSRS spaced repetition (MaiMemo's open-source scheduler), daily new-word quota with unmetered reviews, personal progression (continues where you left off)
 - Modes: study, spell (with optional countdown), dictation (listen & write), search
 - Difficult-words drill (auto-collects words you get wrong)
 - Streak counter + 17-week activity heatmap

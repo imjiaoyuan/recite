@@ -1,5 +1,5 @@
 import { h } from '../ui';
-import { getMeta, setMeta, bumpActivity, getWordState, setWordState, removeWordState } from '../store';
+import { getMeta, setMeta, bumpActivity, bumpNew, getWordState, setWordState, removeWordState } from '../store';
 import { loadList, loadSentences } from '../data';
 import { buildSession, dailyLimit } from '../session';
 import { schedule } from '../srs';
@@ -99,6 +99,7 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
     const prev = getWordState(listId, word); // snapshot before schedule overwrites it
     schedule(listId, word, q);
     bumpActivity(1);
+    if (!prev) bumpNew(listId); // first-ever grade = one of today's new words
     gradedLog.push({ word, q });
     recomputeCounts();
     // Unsure answers (q<4) requeue at the queue tail — once per word.
@@ -121,7 +122,10 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
     if (!undoLast) return;
     const { word, prev, appended } = undoLast;
     if (prev) setWordState(listId, word, prev);
-    else removeWordState(listId, word);
+    else {
+      removeWordState(listId, word);
+      bumpNew(listId, -1); // the undone grade had introduced a fresh word
+    }
     bumpActivity(-1);
     gradedLog.pop();
     recomputeCounts();

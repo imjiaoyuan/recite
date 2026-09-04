@@ -41,7 +41,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     for (const list of m.lists) {
       const total = list.count;
       const s = byList[list.id] || { started: 0, due: 0 };
-      const next = newToday(s.due, total - s.started);
+      const next = newToday(list.id, total - s.started);
       const pct = total ? (s.started / total) * 100 : 0;
 
       grid.append(

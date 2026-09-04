@@ -9,7 +9,7 @@
 // prompt itself needs sentences (spell's cloze) — typed text and focus are
 // preserved, so a slow fetch never blocks or wipes typing.
 import { h } from '../ui';
-import { getMeta, setMeta, bumpActivity } from '../store';
+import { getMeta, setMeta, bumpActivity, bumpNew, getWordState } from '../store';
 import { loadList, loadSentences } from '../data';
 import { buildSession, dailyLimit } from '../session';
 import { schedule } from '../srs';
@@ -54,7 +54,7 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
     // 墨墨-style: a wrong answer gets one more pass at the queue tail today —
     // FSRS otherwise won't resurface the word until its next due date. The
     // retry counts as another attempt in the totals (accuracy reflects retries).
-    const revisitCount = new Map<string, number>();
+    const revisited = new Set<string>();
 
     let timerId: ReturnType<typeof setInterval> | null = null;
     let timeLeft = 0;
@@ -170,12 +170,13 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
     function markWrong(timeout = false): void {
       clearTimer();
       const e = queue[idx];
+      if (!getWordState(listId, e.word)) bumpNew(listId); // first-ever grade = a new word today
       schedule(listId, e.word, 1);
       bumpActivity(1);
       session.total += 1;
-      if (!revisitCount.has(e.word)) {
+      if (!revisited.has(e.word)) {
         queue.push(e);
-        revisitCount.set(e.word, 1);
+        revisited.add(e.word);
       }
       answered = { ok: false, timeout };
       render();
@@ -186,6 +187,7 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
       const e = queue[idx];
       if (value.trim().toLowerCase() !== e.word.toLowerCase()) return markWrong(false);
       clearTimer();
+      if (!getWordState(listId, e.word)) bumpNew(listId);
       schedule(listId, e.word, 4);
       bumpActivity(1);
       session.total += 1;

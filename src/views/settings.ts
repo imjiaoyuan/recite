@@ -86,7 +86,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       dropdown({ label: t('set.voice'), current: meta.voice, onChange: (v) => setMeta({ voice: v }),
         options: [['en-US', t('opt.us')], ['en-GB', t('opt.gb')]] }),
       dropdown({ label: t('set.daily'), current: meta.dailyLimit, onChange: (v) => setMeta({ dailyLimit: Number(v) }),
-        options: [[20, '20'], [30, '30'], [50, '50'], [100, '100']] }),
+        options: [[20, '20'], [30, '30'], [50, '50'], [100, '100'], [150, '150'], [200, '200']] }),
       dropdown({ label: t('set.retention'), current: meta.retention, onChange: (v) => setMeta({ retention: Number(v) }),
         options: [[0.8, t('opt.retLoose')], [0.9, t('opt.retStd')], [0.95, t('opt.retStrict')]] }),
       dropdown({ label: t('set.countdown'), current: meta.spellCountdown, onChange: (v) => setMeta({ spellCountdown: Number(v) }),

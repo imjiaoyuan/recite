@@ -7,7 +7,7 @@ const STRINGS: Record<string, Dict> = {
   zh: {
     'app.subtitle': '英语背单词 · 间隔重复',
     'set.voice': '发音',
-    'set.daily': '每日学习量（新词+复习）',
+    'set.daily': '每日新词（复习不限量）',
     'set.countdown': '拼写倒计时',
     'set.theme': '主题',
     'set.language': '语言',
@@ -141,7 +141,7 @@ const STRINGS: Record<string, Dict> = {
   en: {
     'app.subtitle': 'English vocabulary · spaced repetition',
     'set.voice': 'Voice',
-    'set.daily': 'Daily volume (new + review)',
+    'set.daily': 'New words / day (reviews free)',
     'set.countdown': 'Spell timer',
     'set.theme': 'Theme',
     'set.language': 'Language',

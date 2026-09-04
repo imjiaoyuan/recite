@@ -10,6 +10,7 @@ const STATE_KEY = 'recite:state';
 const META_KEY = 'recite:meta';
 const ACT_KEY = 'recite:activity';
 const USER_KEY = 'recite:userlists';
+const DAILY_KEY = 'recite:daily';
 
 const defaultMeta: Meta = {
   selectedList: null,
@@ -26,6 +27,13 @@ let stateCache: Record<string, WordState> | null = null;
 let metaCache: Meta | null = null;
 let actCache: Record<string, number> | null = null;
 let userListsCache: UserList[] | null = null;
+let dailyCache: DailyNew | null = null;
+
+// Today's per-list new-word counts (drives the 每日新词 quota, which spans sessions).
+interface DailyNew {
+  d: string; // YYYY-MM-DD the counts belong to
+  n: Record<string, number>; // listId -> new words introduced that day
+}
 
 // Quota-exceeded is the one write failure the UI must surface (a grade would otherwise
 // be silently lost). Registered by the app shell; store.ts stays free of UI deps.
@@ -41,6 +49,7 @@ if (typeof window !== 'undefined') {
     else if (e.key === META_KEY) metaCache = null;
     else if (e.key === ACT_KEY) actCache = null;
     else if (e.key === USER_KEY) userListsCache = null;
+    else if (e.key === DAILY_KEY) dailyCache = null;
   });
 }
 
@@ -167,6 +176,27 @@ export function bumpActivity(n = 1): void {
   write(ACT_KEY, a);
 }
 
+// ---- Daily new-word quota (墨墨-style: caps NEW words only, reviews unmetered) ----
+
+function getDaily(): DailyNew {
+  dailyCache ??= read<DailyNew>(DAILY_KEY, { d: todayStr(), n: {} });
+  // Stale date -> today's counters are all zero (rolled over lazily, no write here).
+  return dailyCache.d === todayStr() ? dailyCache : { d: todayStr(), n: {} };
+}
+
+export function todayNew(listId: string): number {
+  return getDaily().n[listId] || 0;
+}
+
+// Count a fresh word introduction against the list's daily-new quota. Undo passes
+// -1; clamped at 0 so a cross-midnight undo can't go negative on the new day.
+export function bumpNew(listId: string, n = 1): void {
+  const d = getDaily();
+  d.n[listId] = Math.max(0, (d.n[listId] || 0) + n);
+  dailyCache = d;
+  write(DAILY_KEY, d);
+}
+
 // ---- Difficult words ----
 
 export function getDifficult(): { listId: string; word: string }[] {
@@ -247,6 +277,7 @@ export function exportData(): string {
     meta: getMeta(),
     activity: getActivity(),
     userlists: getUserLists(),
+    daily: getDaily(),
   });
 }
 
@@ -270,15 +301,21 @@ export function importData(jsonStr: string): void {
     if (!Array.isArray(data.userlists)) throw new Error('backup field "userlists" must be an array');
     write(USER_KEY, data.userlists);
   }
-  stateCache = metaCache = actCache = userListsCache = null;
+  if (data.daily != null) {
+    asObject(data.daily, 'daily');
+    write(DAILY_KEY, data.daily);
+  }
+  stateCache = metaCache = actCache = userListsCache = dailyCache = null;
 }
 
 // ---- Reset ----
 
-// Wipe learning progress (SRS state + activity). Settings (meta) are kept.
+// Wipe learning progress (SRS state + activity + daily-new counters). Settings (meta) are kept.
 export function clearAll(): void {
   localStorage.removeItem(STATE_KEY);
   localStorage.removeItem(ACT_KEY);
+  localStorage.removeItem(DAILY_KEY);
   stateCache = null;
   actCache = null;
+  dailyCache = null;
 }
