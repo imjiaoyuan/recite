@@ -3,8 +3,8 @@ import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
 import '@fortawesome/fontawesome-free/css/solid.min.css';
 import { loadVoices, warmup } from './speech';
 import { initTheme } from './theme';
-import { initI18n, t } from './i18n';
-import { onQuotaExceeded, getMeta } from './store';
+import { initI18n, t, browserLangUnsupported, browserLangCode } from './i18n';
+import { onQuotaExceeded, getMeta, setMeta } from './store';
 import { toast } from './ui';
 import { loadMeta, loadList, loadSentences } from './data';
 import { purgeLegacyCaches } from './pwa';
@@ -73,8 +73,36 @@ function hideSplash(): void {
   setTimeout(() => boot.remove(), 400);
 }
 
+// The service worker updates itself in the background (autoUpdate + skipWaiting),
+// so after a deploy the open tab keeps running the OLD bundle until it is
+// reloaded. Without this the user just sees the previous version and concludes
+// nothing shipped. `controller` was already set on every visit after the first,
+// which is what makes the first-install handover distinguishable.
+function watchForUpdates(): void {
+  const sw = navigator.serviceWorker;
+  if (!sw) return;
+  const hadController = !!sw.controller;
+  sw.addEventListener('controllerchange', () => {
+    if (!hadController) return; // first install — nothing stale to replace
+    toast(t('pwa.newVersion'), { label: t('pwa.reload'), onClick: () => location.reload() });
+  });
+}
+
+// The browser offers neither zh nor en, so the app shows English. Say why, once
+// per browser language (a new code re-asks; dismissing is remembered).
+function notifyUnsupportedLang(): void {
+  const stored = getMeta().lang;
+  if (stored === 'zh' || stored === 'en') return; // explicit pick — not our business
+  if (!browserLangUnsupported()) return;
+  const code = browserLangCode();
+  if (getMeta().langNotice === code) return;
+  setMeta({ langNotice: code });
+  toast(t('lang.unsupported', { code }), { label: t('settings.title'), onClick: () => navigate('#/settings') });
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   initI18n();
+  watchForUpdates();
   onQuotaExceeded(() => toast(t('store.quotaFull')));
   initTheme();
   loadVoices();
@@ -89,6 +117,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   hideSplash();
   if (!location.hash) location.hash = '#/';
   render();
+  notifyUnsupportedLang();
   // Warm the heavyweight data in the background so entering a list isn't blank
   // while it loads: every mode needs sentences.json (4+ MB), and the last-studied
   // list is where the user almost always resumes. Returning users only (a

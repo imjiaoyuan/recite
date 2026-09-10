@@ -19,6 +19,7 @@ const defaultMeta: Meta = {
   spellCountdown: 0,
   theme: 'auto',
   lang: 'auto',
+  langNotice: '',
   retention: 0.9,
 };
 

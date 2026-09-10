@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>recite · 背单词</title>
+    <title>recite</title>
     <link rel="icon" href="favicon.ico" />
     <meta name="theme-color" content="#2e4dd6" />
     <!-- Apply theme before paint to avoid flash. -->
@@ -16,6 +16,17 @@
           if (dark) document.documentElement.classList.add('dark');
         } catch (e) {}
       })();
+    </script>
+    <!-- Resolve the UI language before paint: the splash text and the tab title are
+         the first things on screen, so neither should flash the wrong language while
+         the bundle loads. public/lang.js owns the logic; src/i18n.ts re-uses it. -->
+    <!-- Vite warns this can't be bundled without type="module" — that is the point:
+         a module script is deferred past the first paint, which is what we're avoiding. -->
+    <script src="lang.js"></script>
+    <script>
+      // lang.js may be unavailable (a hostile network, a broken deploy) — the static
+      // lang="en"/<title>recite</title> defaults above stand in for it.
+      try { window.__reciteLang = window.reciteLang.apply(); } catch (e) {}
     </script>
     <!-- Splash shown before the JS bundle loads; faded out by main.ts once data is ready. -->
     <style>
@@ -38,7 +49,7 @@
       <div class="sub" id="boot-sub">loading…</div>
       <div class="spin"></div>
     </div>
-    <script>(function(){try{document.getElementById('boot-sub').textContent=((navigator.language||'en').toLowerCase().indexOf('zh')===0?'加载中…':'loading…');}catch(e){}})();</script>
+    <script>(function(){try{document.getElementById('boot-sub').textContent=window.reciteLang.bootText(window.__reciteLang);}catch(e){}})();</script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

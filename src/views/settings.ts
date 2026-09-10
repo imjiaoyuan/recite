@@ -2,7 +2,7 @@
 // plus data backup, offline download, and reset.
 import { h, toast } from '../ui';
 import { getMeta, setMeta, exportData, importData, clearAll, todayStr } from '../store';
-import { t, setLang } from '../i18n';
+import { t, setLang, browserLangCode, browserLangUnsupported } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
@@ -13,6 +13,14 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
   const meta = getMeta();
   const el = h('div', { class: 'page' });
   const fileInput = h('input', { type: 'file', accept: 'application/json,.json', style: 'display:none' }) as HTMLInputElement;
+
+  // Surfaced under the language picker: "why is this app in the wrong language?"
+  // is otherwise only answerable from the devtools console.
+  function langHint(): string {
+    if (meta.lang === 'zh' || meta.lang === 'en') return t('set.langManual');
+    const vars = { code: browserLangCode(), name: t('set.langName') };
+    return browserLangUnsupported() ? t('set.langHintUnsupported', vars) : t('set.langHint', vars);
+  }
 
   function doExport(): void {
     const a = document.createElement('a');
@@ -83,6 +91,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
         options: [['auto', t('opt.auto')], ['light', t('opt.light')], ['dark', t('opt.dark')]] }),
       dropdown({ label: t('set.language'), current: meta.lang, onChange: (v) => setLang(v),
         options: [['auto', t('opt.langAuto')], ['zh', '中文'], ['en', 'English']] }),
+      h('div', { class: 'dd-hint' }, langHint()),
       h('div', { class: 'data-row' },
         h('button', { class: 'btn', onclick: doExport }, h('i', { class: 'fa-solid fa-download' }), t('data.export')),
         h('button', { class: 'btn', onclick: () => fileInput.click() }, h('i', { class: 'fa-solid fa-upload' }), t('data.import')),

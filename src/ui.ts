@@ -25,15 +25,34 @@ export function shuffle<T>(arr: T[]): T[] {
   return arr;
 }
 
-// Transient toast message.
-export function toast(msg: string): void {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(() => {
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 300);
-  }, 2400);
+// Transient toast message. Pass an action for anything the user may want to act on
+// (the new-version notice): it lingers longer and gets a button.
+let liveToasts = 0;
+export function toast(msg: string, action?: { label: string; onClick: () => void }): void {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.append(document.createTextNode(msg));
+
+  // Stack instead of piling up on the same spot — two can be in flight at boot
+  // (new version + unsupported browser language).
+  el.style.bottom = `${28 + liveToasts * 52}px`;
+  liveToasts++;
+
+  let done = false;
+  function dismiss(): void {
+    if (done) return; // the action button and the timer race
+    done = true;
+    clearTimeout(timer);
+    liveToasts--;
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }
+
+  if (action) {
+    el.append(h('button', { type: 'button', class: 'toast-action', onclick: () => { action.onClick(); dismiss(); } }, action.label));
+  }
+
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  const timer = setTimeout(dismiss, action ? 8000 : 2400);
 }

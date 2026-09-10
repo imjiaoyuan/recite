@@ -11,6 +11,10 @@ const STRINGS: Record<string, Dict> = {
     'set.countdown': '拼写倒计时',
     'set.theme': '主题',
     'set.language': '语言',
+    'set.langName': '中文',
+    'set.langHint': '跟随浏览器 · {code} → {name}',
+    'set.langHintUnsupported': '跟随浏览器 · {code} → {name}（该语言暂不支持，可在上方手动切换）',
+    'set.langManual': '已手动选择，不再跟随浏览器',
     'set.retention': '目标保留率',
     'opt.retLoose': '宽松 80%（间隔更长）',
     'opt.retStd': '标准 90%',
@@ -97,6 +101,9 @@ const STRINGS: Record<string, Dict> = {
     'pwa.offlineFail': '离线下载失败，请检查网络后重试',
     'pwa.install': '安装到桌面',
     'pwa.installHint': '请从浏览器菜单选择「安装 / 添加到主屏幕」',
+    'pwa.newVersion': '有新版本可用',
+    'pwa.reload': '刷新',
+    'lang.unsupported': '浏览器语言 {code} 暂不支持，当前以英文显示',
     'home.newList': '新建词本',
     'home.browse': '浏览',
     'list.create.title': '新建词本',
@@ -138,6 +145,10 @@ const STRINGS: Record<string, Dict> = {
     'set.countdown': 'Spell timer',
     'set.theme': 'Theme',
     'set.language': 'Language',
+    'set.langName': 'English',
+    'set.langHint': 'Following browser · {code} → {name}',
+    'set.langHintUnsupported': 'Following browser · {code} → {name} (unsupported — pick one above)',
+    'set.langManual': 'Set manually — browser language ignored',
     'set.retention': 'Retention target',
     'opt.retLoose': 'Relaxed 80% (longer gaps)',
     'opt.retStd': 'Standard 90%',
@@ -224,6 +235,9 @@ const STRINGS: Record<string, Dict> = {
     'pwa.offlineFail': 'Offline download failed — check your network',
     'pwa.install': 'Install app',
     'pwa.installHint': 'Use browser menu: Install / Add to Home Screen',
+    'pwa.newVersion': 'New version available',
+    'pwa.reload': 'Reload',
+    'lang.unsupported': "Browser language {code} isn't supported yet — showing English",
     'home.newList': 'New list',
     'home.browse': 'Browse',
     'list.create.title': 'New list',
@@ -270,17 +284,49 @@ const LIST_DESC: Record<string, Record<string, string>> = {
   en: { zk: 'Junior high', gk: 'College entry', cet4: 'Univ. English 4', cet6: 'Univ. English 6', ky: 'Grad entry', toefl: 'Test of English', ielts: 'Intl English', gre: 'Grad Record', awl: 'Academic words' },
 };
 
+declare global {
+  interface Window {
+    // Set up by public/lang.js, which runs in <head> before the bundle. Optional
+    // only so a failed script load degrades instead of taking the whole boot down.
+    reciteLang?: {
+      resolve(): string;
+      unsupported(): boolean;
+      code(): string;
+      title(lang: string): string;
+      bootText(lang: string): string;
+    };
+  }
+}
+
 let current = 'zh';
 
+// Language resolution lives in public/lang.js because it has to run before the
+// bundle does (splash text + tab title). Everything here delegates to it — there is
+// no second implementation to drift. The inline fallbacks below only ever run if
+// that script failed to load.
 export function detectLang(): string {
+  if (window.reciteLang) return window.reciteLang.resolve();
   const stored = getMeta().lang || 'auto';
   if (stored === 'zh' || stored === 'en') return stored;
   return (navigator.language || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
 
+// Raw code for the settings hint ("following browser · zh-CN → 中文"), so a
+// user who sees an unexpected language can tell where it came from.
+export function browserLangCode(): string {
+  return window.reciteLang ? window.reciteLang.code() : navigator.language || '—';
+}
+
+// The browser's list holds neither zh nor en: we fall back to English, and the
+// caller should say so rather than let the user wonder.
+export function browserLangUnsupported(): boolean {
+  return !!window.reciteLang && window.reciteLang.unsupported();
+}
+
 export function initI18n(): void {
   current = detectLang();
   document.documentElement.lang = current === 'zh' ? 'zh-CN' : 'en';
+  document.title = window.reciteLang ? window.reciteLang.title(current) : 'recite';
 }
 
 // Changing language reloads so every string re-renders consistently.

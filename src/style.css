@@ -482,6 +482,7 @@ a { color: var(--accent); }
   padding: 16px;
 }
 .settings .dd { margin: 0 8px 10px 0; }
+.settings .dd-hint { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
 .data-row { display: flex; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .data-row .btn { flex: 1; white-space: nowrap; }
 
@@ -540,10 +541,25 @@ a { color: var(--accent); }
   z-index: 1000;
   max-width: 90vw;
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .toast.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.toast-action {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bg);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  padding: 3px 10px;
+  cursor: pointer;
 }
 
 /* ---- A11y ---- */
