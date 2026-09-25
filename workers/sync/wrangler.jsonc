@@ -13,12 +13,16 @@
   "assets": {
     "directory": "../../dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // Without this, matching asset requests are served directly by the assets
+    // layer and NEVER reach the worker — so the <meta name="recite-sync"> stamp
+    // (and the KV routes on asset-like paths) would silently never apply.
+    "run_worker_first": true
   },
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "03dd6f9574134775988cfc88a7b940a5"
     }
   ],
   "vars": {

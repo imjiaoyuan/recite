@@ -98,17 +98,26 @@ tier (100k reads / 1k writes per day).
 
 ### One-click deploy (recommended)
 
-Deploy your own sync relay — free, no CLI, ~2 minutes:
+Deploy your own copy — app + data store on one origin, free, ~2 minutes:
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/imjiaoyuan/recite)
 
 1. Click the button above, log in to Cloudflare (a free account works), and let it
-   clone + deploy the repo — the Worker lives in [`workers/sync/`](workers/sync/).
+   clone + build + deploy the repo — the Worker lives in
+   [`workers/sync/`](workers/sync/) and ships the built site as static assets.
 2. The setup page asks you to provision a KV namespace — confirm the default.
-3. When deployment finishes, copy the `https://recite-sync.<your-account>.workers.dev`
-   URL.
-4. On every device, open the app → 设置 → 云同步, paste the URL, set a sync code
-   (same code everywhere — tap 随机生成 for a strong one), then 立即同步.
+3. When deployment finishes, open `https://recite-sync.<your-account>.workers.dev`
+   — **that page IS the app**, and its own origin is the data store (a
+   `<meta name="recite-sync">` stamp tells the app so; the server-URL field is
+   hidden in settings). Bind a custom domain later — it works the same way,
+   zero reconfiguration.
+4. On every device, open that same URL → 设置 → 云同步, set a sync code (same
+   code everywhere — tap 随机生成 for a strong one), then 立即同步. No URLs to
+   paste, ever.
+
+The GitHub Pages copy of the app still works as a client: there you do paste
+the sync server URL by hand (the URL field stays). WebDAV is the self-hosted
+alternative — see below.
 
 The sync code is the credential: it doubles as the KV key. Anyone who knows the
 URL **and** the code can read/overwrite that data, so keep the code to yourself.
