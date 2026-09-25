@@ -14,6 +14,7 @@ import { getMeta, setMeta, bumpActivity, bumpNew, getWordState } from '../store'
 import { loadList, loadSentences } from '../data';
 import { buildSession, dailyLimit } from '../session';
 import { schedule } from '../srs';
+import { autoSync } from '../sync';
 import { speak } from '../speech';
 import { t } from '../i18n';
 import { topbar, setProgress, loadFailEl, loadingEl } from './common';
@@ -99,6 +100,7 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
       area.innerHTML = '';
       const empty = queue.length === 0;
       const acc = session.total ? Math.round((session.ok / session.total) * 100) : 0;
+      if (!empty) autoSync(); // session ended — push progress in the background
       area.append(
         h('div', { class: 'done' },
           h('div', { class: 'done-title' }, empty ? t('done.noneSpell') : t('done.titleSpell')),

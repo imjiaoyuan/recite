@@ -497,6 +497,35 @@ a { color: var(--accent); }
 .data-row { display: flex; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .data-row .btn { flex: 1; white-space: nowrap; }
 
+/* ---- Cloud sync ---- */
+.sync-box { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sync-title {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 14px; margin-bottom: 4px;
+}
+.sync-title .icon { color: var(--accent); }
+.sync-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--muted); margin: 10px 0 4px;
+}
+.sync-input {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 12px; font-size: 14px; font-family: var(--mono);
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface-2); color: var(--text);
+}
+.sync-input:focus { outline: none; border-color: var(--accent); }
+.sync-warn { color: #d97706; }
+.link-btn {
+  background: none; border: none; padding: 0;
+  font-size: 12px; color: var(--accent); cursor: pointer;
+}
+.sync-help summary {
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  margin-top: 10px; user-select: none;
+}
+.sync-help .dd-hint { margin: 8px 0 0; }
+
 /* ---- Heatmap ---- */
 .heatmap-card { padding: 18px; }
 .heat-grid {

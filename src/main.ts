@@ -6,6 +6,7 @@ import { onQuotaExceeded, getMeta, setMeta } from './store';
 import { toast } from './ui';
 import { loadMeta, loadList, loadSentences } from './data';
 import { purgeLegacyCaches } from './pwa';
+import { autoSync } from './sync';
 import home from './views/home';
 import study from './views/study';
 import spell from './views/spell';
@@ -116,6 +117,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!location.hash) location.hash = '#/';
   render();
   notifyUnsupportedLang();
+  autoSync(); // pull the latest progress in the background (no-op unless configured)
   // Warm the heavyweight data in the background so entering a list isn't blank
   // while it loads: every mode needs sentences.json (4+ MB), and the last-studied
   // list is where the user almost always resumes. Returning users only (a

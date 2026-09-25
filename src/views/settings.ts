@@ -7,6 +7,7 @@ import { t, setLang, browserLangCode, browserLangUnsupported } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
+import { runSync, genSyncKey, syncConfigured } from '../sync';
 import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
 
@@ -77,6 +78,75 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
     if (!ok && !canInstall()) toast(t('pwa.installHint'));
   }
 
+  // ---- Cloud sync block ----
+
+  const syncSection = h('div', { class: 'sync-box' });
+
+  function fmtSyncTime(ms: number): string {
+    if (!ms) return t('sync.never');
+    const d = new Date(ms);
+    const sameDay = d.toDateString() === new Date().toDateString();
+    const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return sameDay ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+  }
+
+  function renderSync(): void {
+    const m = getMeta();
+    syncSection.innerHTML = '';
+    const weak = m.syncKey.length > 0 && m.syncKey.length < 12;
+    const urlInput = h('input', {
+      class: 'sync-input', type: 'text', placeholder: t('sync.urlPh'), value: m.syncUrl,
+      oninput: (e: Event) => setMeta({ syncUrl: (e.target as HTMLInputElement).value.trim() }),
+    }) as HTMLInputElement;
+    const keyInput = h('input', {
+      class: 'sync-input', type: 'text', placeholder: t('sync.keyPh'), value: m.syncKey,
+      oninput: (e: Event) => setMeta({ syncKey: (e.target as HTMLInputElement).value.trim() }),
+    }) as HTMLInputElement;
+    const tokenInput = h('input', {
+      class: 'sync-input', type: 'text', placeholder: t('sync.tokenPh'), value: m.syncToken,
+      oninput: (e: Event) => setMeta({ syncToken: (e.target as HTMLInputElement).value.trim() }),
+    }) as HTMLInputElement;
+
+    async function doSync(btn: HTMLElement): Promise<void> {
+      const label = btn.querySelector('.btn-label');
+      btn.setAttribute('disabled', '');
+      if (label) label.textContent = t('sync.syncing');
+      const r = await runSync();
+      btn.removeAttribute('disabled');
+      if (label) label.textContent = t('sync.now');
+      toast(r.ok ? t('sync.ok') : t('sync.fail', { msg: r.error || '' }));
+      renderSync(); // refresh last-sync time
+    }
+
+    const parts: (HTMLElement | string)[] = [
+      h('div', { class: 'sync-title' }, icon('cloud-arrow-down'), t('sync.title')),
+      h('div', { class: 'dd-hint' }, t('sync.desc')),
+      h('label', { class: 'sync-label' }, t('sync.url')),
+      urlInput,
+      h('label', { class: 'sync-label' },
+        t('sync.key'),
+        h('button', { class: 'link-btn', onclick: () => { setMeta({ syncKey: genSyncKey() }); renderSync(); } }, t('sync.genKey')),
+      ),
+      keyInput,
+    ];
+    if (weak) parts.push(h('div', { class: 'dd-hint sync-warn' }, t('sync.keyWeak')));
+    syncSection.append(...parts,
+      h('label', { class: 'sync-label' }, t('sync.token')),
+      tokenInput,
+      h('div', { class: 'data-row' },
+        h('button', { class: 'btn', disabled: !syncConfigured(), onclick: (e: Event) => doSync(e.currentTarget as HTMLElement) },
+          icon('rotate-left'), h('span', { class: 'btn-label' }, t('sync.now'))),
+      ),
+      h('div', { class: 'dd-hint' }, t('sync.last', { time: fmtSyncTime(m.syncLast) })),
+      h('details', { class: 'sync-help' },
+        h('summary', {}, t('sync.deploy')),
+        h('div', { class: 'dd-hint' }, t('sync.deployHint')),
+        h('div', { class: 'dd-hint' }, t('sync.webdavHint')),
+      ),
+    );
+  }
+  renderSync();
+
   el.append(
     topbar(navigate, t('settings.title')),
     h('div', { class: 'settings' },
@@ -93,6 +163,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       dropdown({ label: t('set.language'), current: meta.lang, onChange: (v) => setLang(v),
         options: [['auto', t('opt.langAuto')], ['zh', '中文'], ['en', 'English']] }),
       h('div', { class: 'dd-hint' }, langHint()),
+      syncSection,
       h('div', { class: 'data-row' },
         h('button', { class: 'btn', onclick: doExport }, icon('download'), t('data.export')),
         h('button', { class: 'btn', onclick: () => fileInput.click() }, icon('upload'), t('data.import')),

@@ -24,6 +24,7 @@
 - Difficult-words drill (auto-collects words you get wrong)
 - Streak counter + 17-week activity heatmap
 - Backup import / export (JSON)
+- Multi-device cloud sync (optional, self-hosted — see below)
 - Offline PWA — installable, pre-caches all data
 - English / Chinese UI with system-language auto-detect
 - Light / dark / system theme
@@ -65,3 +66,48 @@ npm run build:data
 # sentences: put sentences.csv + links.csv at scripts/sources/  (https://downloads.tatoeba.org/exports/)
 npm run build:sentences
 ```
+
+## Cloud sync (optional, self-hosted)
+
+Learning progress stays in your browser's localStorage; the cloud is only a
+mirror. Sync runs automatically at startup and after each session, or manually
+from 设置 → 云同步. One sync = 1 read + 1 write, far below Cloudflare's free
+tier (100k reads / 1k writes per day).
+
+### One-click deploy (recommended)
+
+Deploy your own sync relay — free, no CLI, ~2 minutes:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/imjiaoyuan/recite)
+
+1. Click the button above, log in to Cloudflare (a free account works), and let it
+   clone + deploy the repo — the Worker lives in [`workers/sync/`](workers/sync/).
+2. The setup page asks you to provision a KV namespace — confirm the default.
+3. When deployment finishes, copy the `https://recite-sync.<your-account>.workers.dev`
+   URL.
+4. On every device, open the app → 设置 → 云同步, paste the URL, set a sync code
+   (same code everywhere — tap 随机生成 for a strong one), then 立即同步.
+
+The sync code is the credential: it doubles as the KV key. Anyone who knows the
+URL **and** the code can read/overwrite that data, so keep the code to yourself.
+Sharing one deployment with friends? Set the optional `TOKEN` variable in the
+Worker (dashboard → Settings → Variables) and fill the same value into 访问令牌.
+
+### WebDAV (advanced)
+
+Self-hosted servers only (e.g. Nextcloud with CORS enabled) — most public WebDAV
+drives don't send CORS headers, so the browser can't reach them. Start the URL
+with `webdav://` and fill the directory path; the sync code becomes the file
+name (`recite-<code>.json`). Credentials go in the URL:
+`webdav://user:pass@host/path/`.
+
+### How merging works
+
+Anki-style last-write-wins, per object:
+
+- each word's SRS state merges by the newer `lastReviewed`
+- user lists union by id, newer edit (`mtime`) wins; deleted lists stay deleted
+  via tombstones (90-day retention)
+- today's new-word quota merges per-list max on the same day; activity heatmap
+  takes the per-date max
+- settings (voice, theme, language…) are per-device and never merged

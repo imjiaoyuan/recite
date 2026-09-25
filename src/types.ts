@@ -13,6 +13,7 @@ export interface UserList {
   name: string;
   words: WordEntry[];
   createdAt: number;
+  mtime?: number; // last edit, maintained by sync for last-write-wins merges
 }
 
 export interface WordState {
@@ -48,6 +49,14 @@ export interface Meta {
   lang: string;
   langNotice: string; // browser language code already warned about ('' = never warned)
   retention: number; // FSRS target retention (0.8 / 0.9 / 0.95)
+  // Cloud sync config. `syncUrl` is the Worker base URL (…/) or a WebDAV file
+  // URL; `syncKey` doubles as the KV key / path segment and the credential;
+  // `syncToken` is the optional shared-secret for multi-user deployments;
+  // `syncLast` is the epoch-ms of the last successful push (0 = never).
+  syncUrl: string;
+  syncKey: string;
+  syncToken: string;
+  syncLast: number;
   // ttsEngine ('system' | 'kokoro') existed while the offline-TTS fallback did;
   // stored values from old installs/backups are tolerated and ignored.
 }

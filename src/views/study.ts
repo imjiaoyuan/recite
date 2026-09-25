@@ -4,6 +4,7 @@ import { getMeta, setMeta, bumpActivity, bumpNew, getWordState, setWordState, re
 import { loadList, loadSentences } from '../data';
 import { buildSession, dailyLimit } from '../session';
 import { schedule } from '../srs';
+import { autoSync } from '../sync';
 import { t } from '../i18n';
 import { GRADES } from '../grades';
 import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
@@ -52,6 +53,7 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   function drawDone(): void {
     area.innerHTML = '';
     const empty = queue.length === 0;
+    if (!empty) autoSync(); // session ended — push progress in the background
     area.append(
       h('div', { class: 'done' },
         h('div', { class: 'done-title' }, empty ? t('done.none') : t('done.title')),

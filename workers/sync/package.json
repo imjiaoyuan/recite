@@ -1,0 +1,5 @@
+{
+  "name": "recite-sync-worker",
+  "private": true,
+  "description": "KV-backed sync relay for the recite PWA — deploy with the Deploy to Cloudflare button, see README."
+}

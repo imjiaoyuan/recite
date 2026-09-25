@@ -3,6 +3,7 @@ import { h, shuffle } from '../ui';
 import { getDifficult, getMeta, bumpActivity } from '../store';
 import { loadList, loadSentences } from '../data';
 import { schedule } from '../srs';
+import { autoSync } from '../sync';
 import { t } from '../i18n';
 import { GRADES } from '../grades';
 import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
@@ -22,6 +23,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
 
   function drawDone(): void {
     area.innerHTML = '';
+    if (session.total) autoSync(); // session ended — push progress in the background
     area.append(
       h('div', { class: 'done' },
         h('div', { class: 'done-title' }, t('done.title')),

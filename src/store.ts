@@ -11,6 +11,11 @@ const META_KEY = 'recite:meta';
 const ACT_KEY = 'recite:activity';
 const USER_KEY = 'recite:userlists';
 const DAILY_KEY = 'recite:daily';
+// Deletion tombstones for sync: listId -> epoch-ms of deletion. Without these,
+// device A deleting a user list would be undone by device B's next merge (B
+// still has the list and would resurrect it). Tombstones older than 90 days are
+// pruned on sync — every device has merged long before then.
+export const TOMB_KEY = 'recite:tombs';
 
 const defaultMeta: Meta = {
   selectedList: null,
@@ -21,6 +26,10 @@ const defaultMeta: Meta = {
   lang: 'auto',
   langNotice: '',
   retention: 0.9,
+  syncUrl: '',
+  syncKey: '',
+  syncToken: '',
+  syncLast: 0,
 };
 
 let stateCache: Record<string, WordState> | null = null;
@@ -28,9 +37,10 @@ let metaCache: Meta | null = null;
 let actCache: Record<string, number> | null = null;
 let userListsCache: UserList[] | null = null;
 let dailyCache: DailyNew | null = null;
+let tombCache: Record<string, number> | null = null;
 
 // Today's per-list new-word counts (drives the 每日新词 quota, which spans sessions).
-interface DailyNew {
+export interface DailyNew {
   d: string; // YYYY-MM-DD the counts belong to
   n: Record<string, number>; // listId -> new words introduced that day
 }
@@ -50,6 +60,7 @@ if (typeof window !== 'undefined') {
     else if (e.key === ACT_KEY) actCache = null;
     else if (e.key === USER_KEY) userListsCache = null;
     else if (e.key === DAILY_KEY) dailyCache = null;
+    else if (e.key === TOMB_KEY) tombCache = null;
   });
 }
 
@@ -103,6 +114,29 @@ export function getState(): Record<string, WordState> {
 
 export function getWordState(listId: string, word: string): WordState | null {
   return getState()[wordKey(listId, word)] || null;
+}
+
+// Wholesale replacers — used by the sync merge to write a whole merged dataset
+// back in one pass (the caches are swapped in the same step so views stay fresh).
+export function setState(s: Record<string, WordState>): void {
+  stateCache = s;
+  write(STATE_KEY, s);
+}
+export function setActivity(a: Record<string, number>): void {
+  actCache = a;
+  write(ACT_KEY, a);
+}
+export function setUserLists(lists: UserList[]): void {
+  userListsCache = lists;
+  write(USER_KEY, lists);
+}
+export function setDaily(d: DailyNew): void {
+  dailyCache = d;
+  write(DAILY_KEY, d);
+}
+export function setTombs(t: Record<string, number>): void {
+  tombCache = t;
+  write(TOMB_KEY, t);
 }
 
 export function setWordState(listId: string, word: string, st: WordState): void {
@@ -178,20 +212,24 @@ export function bumpActivity(n = 1): void {
 
 // ---- Daily new-word quota (墨墨-style: caps NEW words only, reviews unmetered) ----
 
-function getDaily(): DailyNew {
+function getDaily0(): DailyNew {
   dailyCache ??= read<DailyNew>(DAILY_KEY, { d: todayStr(), n: {} });
   // Stale date -> today's counters are all zero (rolled over lazily, no write here).
   return dailyCache.d === todayStr() ? dailyCache : { d: todayStr(), n: {} };
 }
 
+export function getDaily(): DailyNew {
+  return getDaily0();
+}
+
 export function todayNew(listId: string): number {
-  return getDaily().n[listId] || 0;
+  return getDaily0().n[listId] || 0;
 }
 
 // Count a fresh word introduction against the list's daily-new quota. Undo passes
 // -1; clamped at 0 so a cross-midnight undo can't go negative on the new day.
 export function bumpNew(listId: string, n = 1): void {
-  const d = getDaily();
+  const d = getDaily0();
   d.n[listId] = Math.max(0, (d.n[listId] || 0) + n);
   dailyCache = d;
   write(DAILY_KEY, d);
@@ -230,6 +268,18 @@ export function statsByList(): Record<string, { started: number; due: number }> 
   return out;
 }
 
+// ---- Deletion tombstones (sync) ----
+
+export function getTombs(): Record<string, number> {
+  return (tombCache ??= read<Record<string, number>>(TOMB_KEY, {}));
+}
+
+export function addTomb(listId: string): void {
+  const t = getTombs();
+  t[listId] = Date.now();
+  write(TOMB_KEY, t);
+}
+
 // ---- User-created word lists ----
 
 export function getUserLists(): UserList[] {
@@ -258,6 +308,9 @@ export function deleteUserList(id: string): void {
   const prefix = `${id}:`;
   for (const k in s) if (k.startsWith(prefix)) delete s[k];
   write(STATE_KEY, s);
+  // Record the deletion so a later sync merge doesn't resurrect the list
+  // from a device that hasn't seen the delete yet.
+  addTomb(id);
   // Stop the boot prefetch from 404-ing on the deleted list forever.
   if (getMeta().selectedList === id) setMeta({ selectedList: null });
 }
@@ -278,6 +331,7 @@ export function exportData(): string {
     activity: getActivity(),
     userlists: getUserLists(),
     daily: getDaily(),
+    tombs: getTombs(),
   });
 }
 
@@ -305,7 +359,11 @@ export function importData(jsonStr: string): void {
     asObject(data.daily, 'daily');
     write(DAILY_KEY, data.daily);
   }
-  stateCache = metaCache = actCache = userListsCache = dailyCache = null;
+  if (data.tombs != null) {
+    asObject(data.tombs, 'tombs');
+    write(TOMB_KEY, data.tombs);
+  }
+  stateCache = metaCache = actCache = userListsCache = dailyCache = tombCache = null;
 }
 
 // ---- Reset ----
