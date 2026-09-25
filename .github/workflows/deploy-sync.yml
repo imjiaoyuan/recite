@@ -41,7 +41,15 @@ jobs:
       # From the repo root (NOT workers/sync/): wrangler resolves
       # assets.directory relative to the config file, and dist/ is at the root.
       - name: Deploy worker (site + sync API)
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
         run: npx wrangler@latest deploy -c workers/sync/wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # No token configured → nothing this workflow can do; say so instead of
+      # failing red on every push. Deploy via the README button or
+      # `npm run deploy:worker` instead.
+      - name: Skip (no token)
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo "::notice::CLOUDFLARE_API_TOKEN not set — worker not auto-deployed. Use the Deploy button or npm run deploy:worker."
