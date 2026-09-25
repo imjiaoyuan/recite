@@ -2,6 +2,7 @@
 // until reveal. All flow logic lives in quiz.ts.
 import { quiz } from './quiz';
 import { h } from '../ui';
+import { icon } from '../icons';
 import { speak } from '../speech';
 import { t } from '../i18n';
 
@@ -11,7 +12,7 @@ export default quiz({
   cardClass: 'dict-card',
   prompt: (e, _ex, voice) => [
     h('button', { class: 'play-btn', onclick: () => speak(e.word, voice) },
-      h('i', { class: 'fa-solid fa-volume-high' }),
+      icon('volume-high'),
       h('span', {}, t('dict.listen')),
     ),
     h('button', { class: 'replay', onclick: () => speak(e.word, voice) }, t('dict.replay')),

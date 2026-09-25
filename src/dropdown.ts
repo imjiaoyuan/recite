@@ -1,5 +1,6 @@
 // Custom dropdown (fully styled, both closed and open) — replaces native <select>.
 import { h } from './ui';
+import { icon } from './icons';
 
 export interface DropdownOptions {
   label: string;
@@ -11,7 +12,8 @@ export interface DropdownOptions {
 export function dropdown({ label, options, current, onChange }: DropdownOptions): HTMLElement {
   const cur = options.find(([v]) => String(v) === String(current));
   const valueSpan = h('span', { class: 'dd-value' }, cur ? cur[1] : '—');
-  const caret = h('i', { class: 'fa-solid fa-chevron-down dd-caret' });
+  const caret = icon('chevron-down');
+  caret.classList.add('dd-caret');
   const trigger = h(
     'button',
     { type: 'button', class: 'dd-trigger', 'aria-haspopup': 'listbox', 'aria-expanded': 'false' },

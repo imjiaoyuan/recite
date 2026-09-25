@@ -110,6 +110,17 @@ a { color: var(--accent); }
 }
 .icon-only { padding: 9px 12px; }
 
+/* Inline SVG icons (src/icons.ts) — sized by font-size like the old icon font,
+   colored by currentColor so they follow text/theme color. */
+.icon {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.125em;
+  fill: currentColor;
+  flex: none;
+}
+
 /* ---- Custom dropdown ---- */
 .dd { position: relative; display: inline-block; }
 .dd-trigger {
@@ -128,7 +139,7 @@ a { color: var(--accent); }
 .dd-trigger:hover { background: var(--surface-2); }
 .dd-label { color: var(--muted); }
 .dd-value { font-weight: 500; }
-.dd-caret { font-size: 11px; color: var(--muted); transition: transform 0.15s; }
+.dd-caret { width: 11px; height: 11px; color: var(--muted); transition: transform 0.15s; }
 .dd.open .dd-caret { transform: rotate(180deg); }
 .dd-menu {
   position: absolute;
@@ -458,7 +469,7 @@ a { color: var(--accent); }
   font-size: 13px;
 }
 .play-btn:hover { background: var(--surface-3); }
-.play-btn .fa-volume-high { font-size: 32px; }
+.play-btn .icon { width: 32px; height: 32px; }
 .replay {
   background: none;
   border: none;

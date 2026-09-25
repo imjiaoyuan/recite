@@ -1,4 +1,5 @@
 import { h } from '../ui';
+import { icon } from '../icons';
 import { getMeta, setMeta, bumpActivity, bumpNew, getWordState, setWordState, removeWordState } from '../store';
 import { loadList, loadSentences } from '../data';
 import { buildSession, dailyLimit } from '../session';
@@ -15,18 +16,20 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
   let revealed = false;
   let sentences: Record<string, Example[]> = {};
   const session = { total: 0, ok: 0 };
-  // 墨墨-style in-session requeue: words graded q<4 (forgot/hard) are appended
-  // straight to the queue tail for one more pass today. Pushing onto the queue
+  // 墨墨-style in-session requeue: the LATEST grade decides (not the first one) —
+  // any appearance graded q<4 (forgot/hard) requeues at the tail for another pass
+  // today, up to REVISIT_MAX times per word. So a word forgotten twice comes back
+  // twice; a Good/Easy immediately stops the requeue. Pushing onto the queue
   // (rather than a side list merged later) keeps undo simple: the revisit is
-  // always the tail entry, so undo() can pop it. At most once per word.
-  const REVISIT_MAX = 1;
+  // always the tail entry, so undo() can pop it. At most REVISIT_MAX per word.
+  const REVISIT_MAX = 2;
   const revisitCount = new Map<string, number>();
   // Every grade, oldest first — drives the unique-word totals on the done screen.
   const gradedLog: { word: string; q: number }[] = [];
   // Snapshot of the last graded card, for one-step undo ("oops, misclick").
   let undoLast: { word: string; prev: WordState | null; appended: boolean } | null = null;
 
-  const undoBtn = h('button', { class: 'btn ghost icon-only', title: t('study.undo'), onclick: undo, style: 'display:none' }, h('i', { class: 'fa-solid fa-rotate-left' }));
+  const undoBtn = h('button', { class: 'btn ghost icon-only', title: t('study.undo'), onclick: undo, style: 'display:none' }, icon('rotate-left'));
   const bar = topbar(navigate, '', [undoBtn]);
   const area = h('div', { class: 'card-area' }, loadingEl());
   el.append(bar, area);
@@ -96,7 +99,8 @@ export default function study([listId]: string[], { navigate }: Ctx): ViewResult
     if (!prev) bumpNew(listId); // first-ever grade = one of today's new words
     gradedLog.push({ word, q });
     recomputeCounts();
-    // Unsure answers (q<4) requeue at the queue tail — once per word.
+    // Unsure answers (q<4, by the LATEST grade) requeue at the tail — capped per word.
+    // Cap, not a one-shot flag: forget it twice -> it comes back twice.
     let appended = false;
     if (q < 4 && (revisitCount.get(word) || 0) < REVISIT_MAX) {
       queue.push(e);

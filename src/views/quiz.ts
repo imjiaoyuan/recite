@@ -9,6 +9,7 @@
 // prompt itself needs sentences (spell's cloze) — typed text and focus are
 // preserved, so a slow fetch never blocks or wipes typing.
 import { h } from '../ui';
+import { icon } from '../icons';
 import { getMeta, setMeta, bumpActivity, bumpNew, getWordState } from '../store';
 import { loadList, loadSentences } from '../data';
 import { buildSession, dailyLimit } from '../session';
@@ -51,10 +52,12 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
     let answered: Answered | false = false;
     let sentences: Record<string, Example[]> = {};
     const session = { total: 0, ok: 0 };
-    // 墨墨-style: a wrong answer gets one more pass at the queue tail today —
-    // FSRS otherwise won't resurface the word until its next due date. The
-    // retry counts as another attempt in the totals (accuracy reflects retries).
-    const revisited = new Set<string>();
+    // 墨墨-style: the LATEST answer decides (not the first one) — a wrong answer
+    // requeues at the tail for another pass today, up to 2 times per word. FSRS
+    // otherwise wouldn't resurface the word until its next due date. The retry
+    // counts as another attempt in the totals (accuracy reflects retries).
+    const REVISIT_MAX = 2;
+    const revisited = new Map<string, number>();
 
     let timerId: ReturnType<typeof setInterval> | null = null;
     let timeLeft = 0;
@@ -73,7 +76,7 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
     function paintTimer(): void {
       if (timerEl) {
         timerEl.innerHTML = '';
-        timerEl.append(h('i', { class: 'fa-solid fa-clock' }), ` ${timeLeft}s`);
+        timerEl.append(icon('clock'), ` ${timeLeft}s`);
         timerEl.classList.toggle('warn', timeLeft <= 3);
       }
     }
@@ -134,7 +137,7 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
                   ex.zh ? h('div', { class: 'ex-zh muted' }, ex.zh) : null)
               : null,
           ),
-          h('button', { class: 'btn primary big', onclick: next }, t('spell.next'), h('i', { class: 'fa-solid fa-arrow-right' })),
+          h('button', { class: 'btn primary big', onclick: next }, t('spell.next'), icon('arrow-right')),
         );
         const nb = area.querySelector('.btn.primary.big') as HTMLElement | null;
         if (nb) setTimeout(() => nb.focus(), 0);
@@ -174,9 +177,9 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
       schedule(listId, e.word, 1);
       bumpActivity(1);
       session.total += 1;
-      if (!revisited.has(e.word)) {
+      if ((revisited.get(e.word) || 0) < REVISIT_MAX) {
         queue.push(e);
-        revisited.add(e.word);
+        revisited.set(e.word, (revisited.get(e.word) || 0) + 1);
       }
       answered = { ok: false, timeout };
       render();

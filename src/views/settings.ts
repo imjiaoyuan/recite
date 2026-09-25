@@ -1,6 +1,7 @@
 // Settings page: voice, daily limit, spell timer, theme, language,
 // plus data backup, offline download, and reset.
 import { h, toast } from '../ui';
+import { icon } from '../icons';
 import { getMeta, setMeta, exportData, importData, clearAll, todayStr } from '../store';
 import { t, setLang, browserLangCode, browserLangUnsupported } from '../i18n';
 import { setTheme } from '../theme';
@@ -93,16 +94,16 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
         options: [['auto', t('opt.langAuto')], ['zh', '中文'], ['en', 'English']] }),
       h('div', { class: 'dd-hint' }, langHint()),
       h('div', { class: 'data-row' },
-        h('button', { class: 'btn', onclick: doExport }, h('i', { class: 'fa-solid fa-download' }), t('data.export')),
-        h('button', { class: 'btn', onclick: () => fileInput.click() }, h('i', { class: 'fa-solid fa-upload' }), t('data.import')),
+        h('button', { class: 'btn', onclick: doExport }, icon('download'), t('data.export')),
+        h('button', { class: 'btn', onclick: () => fileInput.click() }, icon('upload'), t('data.import')),
       ),
       h('div', { class: 'data-row' },
         h('button', { class: 'btn', onclick: (e: Event) => doOffline(e.currentTarget as HTMLElement) },
-          h('i', { class: 'fa-solid fa-cloud-arrow-down' }), h('span', { class: 'btn-label' }, t('pwa.offline'))),
-        h('button', { class: 'btn', onclick: doInstall }, h('i', { class: 'fa-solid fa-circle-down' }), t('pwa.install')),
+          icon('cloud-arrow-down'), h('span', { class: 'btn-label' }, t('pwa.offline'))),
+        h('button', { class: 'btn', onclick: doInstall }, icon('circle-down'), t('pwa.install')),
       ),
       h('div', { class: 'data-row' },
-        h('button', { class: 'btn danger', onclick: doClear }, h('i', { class: 'fa-solid fa-trash-can' }), t('data.clear')),
+        h('button', { class: 'btn danger', onclick: doClear }, icon('trash-can'), t('data.clear')),
       ),
     ),
     fileInput,

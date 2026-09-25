@@ -2,6 +2,7 @@
 // multi-select, and bulk mark/unmark "known" (known words are excluded from study).
 // Custom lists (id starts with "user-") get a delete button in the topbar.
 import { h, toast } from '../ui';
+import { icon } from '../icons';
 import { getState, getMeta, markKnown, unmarkKnown, deleteUserList } from '../store';
 import { loadList } from '../data';
 import { invalidateSearchIndex } from './search';
@@ -48,7 +49,7 @@ export default function listView([listId]: string[], { navigate }: Ctx): ViewRes
   const el = h('div', { class: 'page' });
   const bar = topbar(navigate, listName(listId));
   if (isCustom) {
-    bar.append(h('button', { class: 'btn ghost icon-only', title: t('list.delete'), onclick: onDelete }, h('i', { class: 'fa-solid fa-trash-can' })));
+    bar.append(h('button', { class: 'btn ghost icon-only', title: t('list.delete'), onclick: onDelete }, icon('trash-can')));
   }
   const toolbar = h('div', { class: 'list-toolbar' });
   const listEl = h('div', { class: 'word-list' }, loadingEl());
@@ -147,10 +148,10 @@ export default function listView([listId]: string[], { navigate }: Ctx): ViewRes
     );
     selInfo = h('div', { class: 'list-sel muted' }, '');
     const actions = h('div', { class: 'list-actions' },
-      h('button', { class: 'btn', onclick: selectAll }, h('i', { class: 'fa-solid fa-list-check' }), t('list.selectAll')),
-      selected.size ? h('button', { class: 'btn', onclick: () => { selected.clear(); render(); } }, h('i', { class: 'fa-solid fa-xmark' }), t('list.clearSel')) : null,
-      h('button', { class: 'btn', onclick: () => applyMark(true) }, h('i', { class: 'fa-solid fa-check' }), t('list.markKnown')),
-      h('button', { class: 'btn', onclick: () => applyMark(false) }, h('i', { class: 'fa-solid fa-rotate-left' }), t('list.unmarkKnown')),
+      h('button', { class: 'btn', onclick: selectAll }, icon('list-check'), t('list.selectAll')),
+      selected.size ? h('button', { class: 'btn', onclick: () => { selected.clear(); render(); } }, icon('xmark'), t('list.clearSel')) : null,
+      h('button', { class: 'btn', onclick: () => applyMark(true) }, icon('check'), t('list.markKnown')),
+      h('button', { class: 'btn', onclick: () => applyMark(false) }, icon('rotate-left'), t('list.unmarkKnown')),
     );
     updateSelInfo();
     toolbar.append(chips, actions, selInfo);

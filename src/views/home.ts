@@ -1,12 +1,13 @@
 import { h } from '../ui';
+import { icon } from '../icons';
 import { getDifficult, statsByList } from '../store';
 import { loadMeta } from '../data';
 import { newToday } from '../session';
 import { t, listName, listDesc } from '../i18n';
 import type { Ctx, ViewResult } from '../types';
 
-function iconBtn(icon: string, title: string, onclick: () => void): HTMLElement {
-  return h('button', { class: 'btn ghost icon-only', title, onclick }, h('i', { class: `fa-solid ${icon}` }));
+function iconBtn(name: string, title: string, onclick: () => void): HTMLElement {
+  return h('button', { class: 'btn ghost icon-only', title, onclick }, icon(name));
 }
 
 export default function home(_params: string[], { navigate }: Ctx): ViewResult {
@@ -20,11 +21,11 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
         h('span', { class: 'tag' }, t('app.subtitle')),
       ),
       h('div', { class: 'head-actions' },
-        iconBtn('fa-plus', t('home.newList'), () => navigate('#/list/new')),
-        iconBtn('fa-magnifying-glass', t('home.search'), () => navigate('#/search')),
-        iconBtn('fa-bolt', t('home.difficult') + (diffCount ? ` (${diffCount})` : ''), () => navigate('#/drill')),
-        iconBtn('fa-chart-simple', t('home.stats'), () => navigate('#/stats')),
-        iconBtn('fa-gear', t('home.settings'), () => navigate('#/settings')),
+        iconBtn('plus', t('home.newList'), () => navigate('#/list/new')),
+        iconBtn('magnifying-glass', t('home.search'), () => navigate('#/search')),
+        iconBtn('bolt', t('home.difficult') + (diffCount ? ` (${diffCount})` : ''), () => navigate('#/drill')),
+        iconBtn('chart-simple', t('home.stats'), () => navigate('#/stats')),
+        iconBtn('gear', t('home.settings'), () => navigate('#/settings')),
       ),
     ),
   );
@@ -58,10 +59,10 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
           ),
           h('div', { class: 'progress' }, h('div', { class: 'progress-bar', style: `width:${pct}%` })),
           h('div', { class: 'list-actions' },
-            h('button', { class: 'btn primary icon-only', title: t('home.study'), onclick: () => navigate(`#/study/${list.id}`) }, h('i', { class: 'fa-solid fa-book-open' })),
-            h('button', { class: 'btn icon-only', title: t('home.spell'), onclick: () => navigate(`#/spell/${list.id}`) }, h('i', { class: 'fa-solid fa-keyboard' })),
-            h('button', { class: 'btn icon-only', title: t('home.dictation'), onclick: () => navigate(`#/dictation/${list.id}`) }, h('i', { class: 'fa-solid fa-headphones' })),
-            h('button', { class: 'btn icon-only', title: t('home.browse'), onclick: () => navigate(`#/list/${list.id}`) }, h('i', { class: 'fa-solid fa-list' })),
+            h('button', { class: 'btn primary icon-only', title: t('home.study'), onclick: () => navigate(`#/study/${list.id}`) }, icon('book-open')),
+            h('button', { class: 'btn icon-only', title: t('home.spell'), onclick: () => navigate(`#/spell/${list.id}`) }, icon('keyboard')),
+            h('button', { class: 'btn icon-only', title: t('home.dictation'), onclick: () => navigate(`#/dictation/${list.id}`) }, icon('headphones')),
+            h('button', { class: 'btn icon-only', title: t('home.browse'), onclick: () => navigate(`#/list/${list.id}`) }, icon('list')),
           ),
         ),
       );

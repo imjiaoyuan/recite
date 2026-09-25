@@ -1,6 +1,7 @@
 // Shared view building blocks: the standard topbar, progress text, load-failure
 // block, and the study/drill word-card sections.
 import { h } from '../ui';
+import { icon } from '../icons';
 import { t } from '../i18n';
 import { speak } from '../speech';
 import { GRADES } from '../grades';
@@ -11,7 +12,7 @@ import type { Ctx, WordEntry, Example } from '../types';
 export function topbar(navigate: Ctx['navigate'], title = '', right: unknown[] = []): HTMLElement {
   const info = h('div', { class: 'progress-info' }, title);
   return h('div', { class: 'topbar' },
-    h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, h('i', { class: 'fa-solid fa-arrow-left' }), t('common.back')),
+    h('button', { class: 'btn ghost', onclick: () => navigate('#/') }, icon('arrow-left'), t('common.back')),
     right.length ? h('div', { class: 'topbar-right' }, info, ...right) : info,
   );
 }
@@ -37,7 +38,7 @@ export function entryHead(e: WordEntry, voice: string): HTMLElement {
     h('div', { class: 'word', onclick: () => speak(e.word, voice) }, e.word),
     e.pos ? h('span', { class: 'pos' }, e.pos) : null,
     h('div', { class: 'phonetic' }, e.phonetic || ''),
-    h('button', { class: 'say', onclick: () => speak(e.word, voice) }, h('i', { class: 'fa-solid fa-volume-high' }), t('study.speak')),
+    h('button', { class: 'say', onclick: () => speak(e.word, voice) }, icon('volume-high'), t('study.speak')),
   );
 }
 

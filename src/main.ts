@@ -1,6 +1,4 @@
 import './style';
-import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
-import '@fortawesome/fontawesome-free/css/solid.min.css';
 import { loadVoices, warmup } from './speech';
 import { initTheme } from './theme';
 import { initI18n, t, browserLangUnsupported, browserLangCode } from './i18n';
