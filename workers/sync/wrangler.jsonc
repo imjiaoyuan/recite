@@ -3,10 +3,13 @@
   "name": "recite-sync",
   "main": "index.ts",
   "compatibility_date": "2025-01-01",
-  // The site itself rides along as static assets: the Deploy button's pipeline
-  // builds dist/ and uploads it here. Serving app + storage from one origin is
-  // what removes the server-URL field from the UI — the KV bound at deploy time
-  // IS the data store, and the served page is stamped so it knows that.
+  // The site itself rides along as static assets. dist/ is built at the repo
+  // root (and .gitignored — it's a build artifact), so the CLI always runs from
+  // the repo root: `npx wrangler deploy -c workers/sync/wrangler.jsonc`. The
+  // root package.json carries a `deploy:worker` script for exactly that.
+  // Serving app + storage from one origin is what removes the server-URL field
+  // from the UI — the KV bound at deploy time IS the data store, and the served
+  // page is stamped so it knows that.
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

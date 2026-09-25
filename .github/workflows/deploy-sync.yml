@@ -1,0 +1,47 @@
+name: Deploy sync worker
+
+# Builds the site and ships it + the sync worker to Cloudflare in one go.
+# The deployment serves BOTH the app (static assets) and the sync API on the
+# same origin — opening it is all the setup a device needs: the page is
+# stamped with <meta name="recite-sync"> and hides the server-URL field.
+#
+# Requires repo secrets CLOUDFLARE_API_TOKEN (+ optional CLOUDFLARE_ACCOUNT_ID)
+# from a token with Workers Scripts:Edit. Without them this workflow is a no-op
+# for you — use the Deploy button or `npm run deploy:worker` instead.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'workers/sync/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - '.github/workflows/deploy-sync.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # From the repo root (NOT workers/sync/): wrangler resolves
+      # assets.directory relative to the config file, and dist/ is at the root.
+      - name: Deploy worker (site + sync API)
+        run: npx wrangler@latest deploy -c workers/sync/wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
