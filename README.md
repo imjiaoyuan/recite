@@ -58,15 +58,15 @@ Built from [ECDICT](https://github.com/skywind3000/ECDICT), frequency-sorted (mo
 
 | List | Words |
 |------|------:|
-| 中考 (Junior) | 1,603 |
-| 高考 (Senior) | 3,677 |
+| Junior (中考) | 1,603 |
+| Senior (高考) | 3,677 |
 | CET-4 | 3,849 |
 | CET-6 | 5,407 |
-| 考研 (Grad) | 4,801 |
+| Grad (考研) | 4,801 |
 | TOEFL | 6,974 |
 | IELTS | 5,040 |
 | GRE | 7,504 |
-| 读博 AWL (Academic) | 570 |
+| Academic AWL (读博) | 570 |
 
 Example sentences from [Tatoeba](https://tatoeba.org) (~92% coverage).
 
@@ -93,8 +93,8 @@ npm run build:sentences
 
 Learning progress stays in your browser's localStorage; the cloud is only a
 mirror. Sync runs automatically at startup and after each session, or manually
-from 设置 → 云同步. One sync = 1 read + 1 write, far below Cloudflare's free
-tier (100k reads / 1k writes per day).
+from Settings → Cloud sync. One sync = 1 read + 1 write, far below Cloudflare's
+free tier (100k reads / 1k writes per day).
 
 ### One-click deploy (recommended)
 
@@ -111,8 +111,8 @@ Deploy your own copy — app + data store on one origin, free, ~2 minutes:
    `<meta name="recite-sync">` stamp tells the app so; the server-URL field is
    hidden in settings). Bind a custom domain later — it works the same way,
    zero reconfiguration.
-4. On every device, open that same URL → 设置 → 云同步, set a sync code (same
-   code everywhere — tap 随机生成 for a strong one), then 立即同步. No URLs to
+4. On every device, open that same URL → Settings → Cloud sync, type a sync
+   code of your own choosing (same code everywhere), then Sync now. No URLs to
    paste, ever.
 
 The GitHub Pages copy of the app still works as a client: there you do paste
@@ -122,7 +122,8 @@ alternative — see below.
 The sync code is the credential: it doubles as the KV key. Anyone who knows the
 URL **and** the code can read/overwrite that data, so keep the code to yourself.
 Sharing one deployment with friends? Set the optional `TOKEN` variable in the
-Worker (dashboard → Settings → Variables) and fill the same value into 访问令牌.
+Worker (dashboard → Settings → Variables) and fill the same value into the
+access-token field in Settings → Cloud sync.
 
 ### WebDAV (advanced)
 

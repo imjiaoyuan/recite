@@ -5,13 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Pages 部署所需权限
+# Permissions required for the Pages deploy
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 同一时间只跑一个部署
+# Never more than one deployment at a time
 concurrency:
   group: pages
   cancel-in-progress: true
