@@ -179,11 +179,12 @@ async function pushMerged(meta: Meta, m: SyncPayload): Promise<void> {
 
 // ---- Orchestration ----
 
-// The sync code is typed by the user (their own code, same on every device);
-// we only sanity-check its shape: 4–64 url-safe chars, dotless single-segment
-// path — the exact charset the worker routes to KV.
-export function validSyncKey(k: string): boolean {
-  return /^[A-Za-z0-9_-]{4,64}$/.test(k);
+// Generate a random sync code (16 chars [a-z0-9], ~84 bits).
+export function genSyncKey(): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => alphabet[b % alphabet.length]).join('');
 }
 
 let syncing = false;

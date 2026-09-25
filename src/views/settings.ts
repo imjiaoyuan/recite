@@ -7,7 +7,7 @@ import { t, setLang, browserLangCode, browserLangUnsupported } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
-import { runSync, syncConfigured, sameOriginStore, validSyncKey } from '../sync';
+import { runSync, genSyncKey, syncConfigured, sameOriginStore } from '../sync';
 
 declare const APP_VERSION: string; // injected at build time (vite.config.ts define)
 import { topbar } from './common';
@@ -95,7 +95,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
   function renderSync(): void {
     const m = getMeta();
     syncSection.innerHTML = '';
-    const badKey = m.syncKey.length > 0 && !validSyncKey(m.syncKey);
+    const weak = m.syncKey.length > 0 && m.syncKey.length < 12;
     const urlInput = h('input', {
       class: 'sync-input', type: 'text', placeholder: t('sync.urlPh'), value: m.syncUrl,
       oninput: (e: Event) => setMeta({ syncUrl: (e.target as HTMLInputElement).value.trim() }),
@@ -134,10 +134,13 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       );
     }
     parts.push(
-      h('label', { class: 'sync-label' }, t('sync.key')),
+      h('label', { class: 'sync-label' },
+        t('sync.key'),
+        h('button', { class: 'link-btn', onclick: () => { setMeta({ syncKey: genSyncKey() }); renderSync(); } }, t('sync.genKey')),
+      ),
       keyInput,
     );
-    if (badKey) parts.push(h('div', { class: 'dd-hint sync-warn' }, t('sync.keyBad')));
+    if (weak) parts.push(h('div', { class: 'dd-hint sync-warn' }, t('sync.keyWeak')));
     if (!hosted) parts.push(
       h('label', { class: 'sync-label' }, t('sync.token')),
       tokenInput,
