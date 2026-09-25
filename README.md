@@ -111,9 +111,8 @@ Deploy your own copy — app + data store on one origin, free, ~2 minutes:
    `<meta name="recite-sync">` stamp tells the app so; the server-URL field is
    hidden in settings). Bind a custom domain later — it works the same way,
    zero reconfiguration.
-4. On every device, open that same URL → 设置 → 云同步, set a sync code (same
-   code everywhere — tap 随机生成 for a strong one), then 立即同步. No URLs to
-   paste, ever.
+4. On every device, open that same URL → 设置 → 云同步, type a sync code of your
+   own choosing (same code everywhere), then 立即同步. No URLs to paste, ever.
 
 The GitHub Pages copy of the app still works as a client: there you do paste
 the sync server URL by hand (the URL field stays). WebDAV is the self-hosted
