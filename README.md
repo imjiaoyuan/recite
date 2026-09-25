@@ -2,6 +2,28 @@
 
 > Let's memorize some words.
 
+## Changelog
+
+### v0.2.0 (2025-09-25)
+
+- **Multi-device cloud sync** — self-hosted mirror (one-click Cloudflare Worker +
+  KV, or WebDAV). A sync code doubles as the credential; merging is client-side
+  (per-word last-write-wins, tombstoned list deletions, per-date activity max).
+  Auto-syncs at startup and after each session. See “Cloud sync” below.
+- **Denser in-session review** — words graded "forgot/hard" now come back up to
+  twice in the same session (was once) in study, spell and dictation.
+- **No more Font Awesome** — the ~23 icons this app uses are inline SVG now
+  (bundle is ~30 KB smaller; also fixes icons rendering blank when the font
+  was blocked).
+- Settings page shows the app version; upgrading devices get a "new version"
+  toast.
+
+### v0.1.0
+
+- Initial release: FSRS scheduling, study / spell / dictation / drill / search,
+  9 built-in word lists (ECDICT), Tatoeba example sentences, streak + heatmap,
+  bilingual UI, PWA.
+
 ## Screenshots
 
 <div align="center">

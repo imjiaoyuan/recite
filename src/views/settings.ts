@@ -8,6 +8,8 @@ import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
 import { runSync, genSyncKey, syncConfigured } from '../sync';
+
+declare const APP_VERSION: string; // injected at build time (vite.config.ts define)
 import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
 
@@ -176,6 +178,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       h('div', { class: 'data-row' },
         h('button', { class: 'btn danger', onclick: doClear }, icon('trash-can'), t('data.clear')),
       ),
+      h('div', { class: 'dd-hint settings-ver' }, `recite v${APP_VERSION}`),
     ),
     fileInput,
   );

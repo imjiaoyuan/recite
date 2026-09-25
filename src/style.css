@@ -499,6 +499,7 @@ a { color: var(--accent); }
 
 /* ---- Cloud sync ---- */
 .sync-box { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.settings-ver { text-align: center; margin-top: 18px; opacity: .55; }
 .sync-title {
   display: flex; align-items: center; gap: 8px;
   font-weight: 600; font-size: 14px; margin-bottom: 4px;

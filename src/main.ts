@@ -99,6 +99,9 @@ function notifyUnsupportedLang(): void {
   toast(t('lang.unsupported', { code }), { label: t('settings.title'), onClick: () => navigate('#/settings') });
 }
 
+// Injected at build time from package.json via vite.config.ts `define`.
+declare const APP_VERSION: string;
+
 window.addEventListener('DOMContentLoaded', async () => {
   initI18n();
   watchForUpdates();
@@ -117,6 +120,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!location.hash) location.hash = '#/';
   render();
   notifyUnsupportedLang();
+  // One-line version badge on the settings page reads package.json's version at
+  // build time (imported as a string via a ?raw-ish trick: vite replaces
+  // import.meta.env with the define below).
+  const prev = getMeta().seenVersion;
+  if (!prev || prev !== APP_VERSION) {
+    setMeta({ seenVersion: APP_VERSION });
+    // Only toast on an UPGRADE (a value existed before), never on first install.
+    if (prev) toast(t('sync.v', { v: APP_VERSION }));
+  }
   autoSync(); // pull the latest progress in the background (no-op unless configured)
   // Warm the heavyweight data in the background so entering a list isn't blank
   // while it loads: every mode needs sentences.json (4+ MB), and the last-studied

@@ -1,6 +1,6 @@
 {
   "name": "recite",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "自用英语背单词静态网站：四六级 / 考研 / 托福 / 雅思 / 读博，FSRS 间隔重复 + 拼写测试 + 例句",

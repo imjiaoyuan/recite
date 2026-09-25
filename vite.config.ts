@@ -1,4 +1,8 @@
 import { defineConfig, type Plugin } from 'vite';
+import { version } from './package.json';
+// (APP_VERSION — injected below — reaches src via vite's `define` at build time;
+// declared here only for the type layer / dev-server mocks.)
+declare const APP_VERSION: string;
 import { VitePWA, type ManifestOptions } from 'vite-plugin-pwa';
 
 // Everything except the name/description is chrome (icons, colours, display mode)
@@ -47,6 +51,9 @@ export default defineConfig({
   base: './',
   server: { open: true, port: 5173 },
   build: { outDir: 'dist', sourcemap: false },
+  // APP_VERSION is the one true version source (package.json) injected at build
+  // time — used by the settings page footer and the upgrade toast.
+  define: { APP_VERSION: JSON.stringify(version) },
   plugins: [
     zhManifest(),
     VitePWA({

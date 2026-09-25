@@ -30,6 +30,7 @@ const defaultMeta: Meta = {
   syncKey: '',
   syncToken: '',
   syncLast: 0,
+  seenVersion: '',
 };
 
 let stateCache: Record<string, WordState> | null = null;
