@@ -3,6 +3,15 @@
   "name": "recite-sync",
   "main": "index.ts",
   "compatibility_date": "2025-01-01",
+  // The site itself rides along as static assets: the Deploy button's pipeline
+  // builds dist/ and uploads it here. Serving app + storage from one origin is
+  // what removes the server-URL field from the UI — the KV bound at deploy time
+  // IS the data store, and the served page is stamped so it knows that.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
   "kv_namespaces": [
     {
       "binding": "KV",

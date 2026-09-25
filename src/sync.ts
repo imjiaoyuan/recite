@@ -147,13 +147,13 @@ function webdavUrl(meta: Meta): string {
 }
 
 function isWebdav(meta: Meta): boolean {
-  return /^webdav(?:\+(https?))?:\/\//i.test(meta.syncUrl);
+  return !sameOriginStore() && /^webdav(?:\+(https?))?:\/\//i.test(meta.syncUrl);
 }
 
 async function pullRemote(meta: Meta): Promise<SyncPayload | null> {
   const res = isWebdav(meta)
     ? await fetch(webdavUrl(meta), { method: 'GET', headers: authHeaders(meta) })
-    : await fetch(`${meta.syncUrl.replace(/\/+$/, '')}/${encodeURIComponent(meta.syncKey)}`, { headers: authHeaders(meta) });
+    : await fetch(`${serverUrl(meta).replace(/\/+$/, '')}/${encodeURIComponent(meta.syncKey)}`, { headers: authHeaders(meta) });
   if (res.status === 404) return null; // never synced — first device to arrive
   if (!res.ok) throw new Error(`pull ${res.status}`);
   const body = await res.json();
@@ -173,16 +173,11 @@ async function pullRemote(meta: Meta): Promise<SyncPayload | null> {
 async function pushMerged(meta: Meta, m: SyncPayload): Promise<void> {
   const res = isWebdav(meta)
     ? await fetch(webdavUrl(meta), { method: 'PUT', headers: authHeaders(meta), body: JSON.stringify(m) })
-    : await fetch(`${meta.syncUrl.replace(/\/+$/, '')}/${encodeURIComponent(meta.syncKey)}`, { method: 'PUT', headers: authHeaders(meta), body: JSON.stringify(m) });
+    : await fetch(`${serverUrl(meta).replace(/\/+$/, '')}/${encodeURIComponent(meta.syncKey)}`, { method: 'PUT', headers: authHeaders(meta), body: JSON.stringify(m) });
   if (!res.ok) throw new Error(`push ${res.status}`);
 }
 
 // ---- Orchestration ----
-
-export function syncConfigured(): boolean {
-  const m = getMeta();
-  return !!(m.syncUrl && m.syncKey);
-}
 
 // Generate a random sync code (16 chars [a-z0-9], ~84 bits).
 export function genSyncKey(): string {
@@ -226,4 +221,31 @@ export async function autoSync(): Promise<void> {
   } catch (e) {
     console.warn('[sync] auto-sync failed', e);
   }
+}
+
+// ---- Same-origin data store ----
+// A deployment of workers/sync serves the app AND is its data store: the
+// worker stamps <meta name="recite-sync"> into every HTML response, so the
+// page knows "the origin I came from has the KV behind it". No probing, no
+// URLs: on such a deployment the sync server is always location.origin and
+// the settings UI hides the URL field entirely. GitHub Pages and other plain
+// hosts have no marker — there the URL field stays and is filled by hand.
+let storeMode: boolean | null = null;
+export function sameOriginStore(): boolean {
+  if (storeMode === null) {
+    storeMode = !!document.querySelector('meta[name="recite-sync"]');
+  }
+  return storeMode;
+}
+
+// The sync server URL for the current page: this origin when served by a
+// sync worker, else whatever the user configured (cross-origin / WebDAV).
+export function serverUrl(m: Meta): string {
+  return sameOriginStore() ? location.origin : m.syncUrl;
+}
+
+// Effective config check used by runSync/autoSync and the settings page.
+export function syncConfigured(): boolean {
+  const m = getMeta();
+  return !!(m.syncKey && (sameOriginStore() || m.syncUrl));
 }

@@ -129,6 +129,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Only toast on an UPGRADE (a value existed before), never on first install.
     if (prev) toast(t('sync.v', { v: APP_VERSION }));
   }
+  notifyUnsupportedLang();
   autoSync(); // pull the latest progress in the background (no-op unless configured)
   // Warm the heavyweight data in the background so entering a list isn't blank
   // while it loads: every mode needs sentences.json (4+ MB), and the last-studied

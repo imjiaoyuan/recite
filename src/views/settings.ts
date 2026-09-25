@@ -7,7 +7,7 @@ import { t, setLang, browserLangCode, browserLangUnsupported } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
-import { runSync, genSyncKey, syncConfigured } from '../sync';
+import { runSync, genSyncKey, syncConfigured, sameOriginStore } from '../sync';
 
 declare const APP_VERSION: string; // injected at build time (vite.config.ts define)
 import { topbar } from './common';
@@ -120,21 +120,32 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       renderSync(); // refresh last-sync time
     }
 
+    const hosted = sameOriginStore(); // served BY a sync worker: no URLs, ever
     const parts: (HTMLElement | string)[] = [
       h('div', { class: 'sync-title' }, icon('cloud-arrow-down'), t('sync.title')),
-      h('div', { class: 'dd-hint' }, t('sync.desc')),
-      h('label', { class: 'sync-label' }, t('sync.url')),
-      urlInput,
+      h('div', { class: 'dd-hint' }, t(hosted ? 'sync.descHosted' : 'sync.desc')),
+    ];
+    if (hosted) {
+      parts.push(h('div', { class: 'dd-hint sync-sameorigin' }, t('sync.sameOrigin')));
+    } else {
+      parts.push(
+        h('label', { class: 'sync-label' }, t('sync.url')),
+        urlInput,
+      );
+    }
+    parts.push(
       h('label', { class: 'sync-label' },
         t('sync.key'),
         h('button', { class: 'link-btn', onclick: () => { setMeta({ syncKey: genSyncKey() }); renderSync(); } }, t('sync.genKey')),
       ),
       keyInput,
-    ];
+    );
     if (weak) parts.push(h('div', { class: 'dd-hint sync-warn' }, t('sync.keyWeak')));
-    syncSection.append(...parts,
+    if (!hosted) parts.push(
       h('label', { class: 'sync-label' }, t('sync.token')),
       tokenInput,
+    );
+    parts.push(
       h('div', { class: 'data-row' },
         h('button', { class: 'btn', disabled: !syncConfigured(), onclick: (e: Event) => doSync(e.currentTarget as HTMLElement) },
           icon('rotate-left'), h('span', { class: 'btn-label' }, t('sync.now'))),
@@ -146,6 +157,7 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
         h('div', { class: 'dd-hint' }, t('sync.webdavHint')),
       ),
     );
+    syncSection.append(...parts);
   }
   renderSync();
 
