@@ -3,7 +3,7 @@ import { h } from '../ui';
 import { getActivity, statsByList, dateKey } from '../store';
 import { loadMeta } from '../data';
 import { t, listName } from '../i18n';
-import { topbar } from './common';
+import { topbar, loadingEl } from './common';
 import type { Ctx, ViewResult } from '../types';
 
 const DAY = 86400000;
@@ -57,7 +57,7 @@ export default function stats(_params: string[], { navigate }: Ctx): ViewResult 
   const el = h('div', { class: 'page' });
   el.append(topbar(navigate, t('stats.title')));
 
-  const loading = h('p', { class: 'muted' }, t('home.loading'));
+  const loading = loadingEl();
   el.append(loading);
 
   (async () => {

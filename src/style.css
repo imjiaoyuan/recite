@@ -565,6 +565,30 @@ a { color: var(--accent); }
 .result-trans { font-size: 13px; padding-right: 60px; }
 .result-row .badge { position: absolute; right: 12px; top: 12px; }
 
+/* ---- Loading (spinner, mirrors the boot splash) ---- */
+.loading-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.spinner {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 3px solid var(--surface-3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ---- Toast ---- */
 .toast {
   position: fixed;

@@ -26,9 +26,11 @@ export function loadFailEl(err: Error): HTMLElement {
   return h('div', { class: 'done' }, h('div', { class: 'done-title' }, t('loadFail')), h('div', { class: 'muted' }, err.message));
 }
 
-// A quiet placeholder shown while the list data streams in, so the view isn't blank.
+// A quiet placeholder shown while data streams in, so the view isn't blank.
+// Same spinner + text pattern as the boot splash (index.html #boot), so the
+// loading look is consistent app-wide.
 export function loadingEl(): HTMLElement {
-  return h('p', { class: 'muted' }, t('home.loading'));
+  return h('div', { class: 'loading-block' }, h('span', { class: 'spinner' }), t('home.loading'));
 }
 
 // ---- study / drill card sections ----

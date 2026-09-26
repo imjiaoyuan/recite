@@ -3,7 +3,9 @@ import { icon } from '../icons';
 import { getDifficult, statsByList } from '../store';
 import { loadMeta } from '../data';
 import { newToday } from '../session';
+import { setOnPulled } from '../sync';
 import { t, listName, listDesc } from '../i18n';
+import { loadingEl } from './common';
 import type { Ctx, ViewResult } from '../types';
 
 function iconBtn(name: string, title: string, onclick: () => void): HTMLElement {
@@ -13,6 +15,13 @@ function iconBtn(name: string, title: string, onclick: () => void): HTMLElement 
 export default function home(_params: string[], { navigate }: Ctx): ViewResult {
   const el = h('div', { class: 'page' });
   const diffCount = getDifficult().length;
+
+  // Boot auto-sync may pull in progress from another device after the grid has
+  // already rendered from local state — redraw in place so the counts/due
+  // badges are fresh without the user reloading. drawGrid() is defined below;
+  // registration is torn down in cleanup.
+  let drawGrid: () => void = () => {};
+  setOnPulled(() => drawGrid());
 
   el.append(
     h('header', { class: 'page-head' },
@@ -30,12 +39,13 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     ),
   );
 
-  const loading = h('p', { class: 'muted' }, t('home.loading'));
+  const loading = loadingEl();
   el.append(loading);
 
-  (async () => {
+  async function load(): Promise<void> {
     const m = await loadMeta();
-    el.removeChild(loading);
+    // Replace everything below the header (loading placeholder or a previous grid).
+    for (const c of [...el.children].slice(1)) c.remove();
     const grid = h('div', { class: 'grid' });
 
     const byList = statsByList();
@@ -68,9 +78,17 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
       );
     }
     el.append(grid);
-  })().catch((err: Error) => {
+  }
+
+  drawGrid = load; // refresh path re-runs the whole load (cached meta → instant)
+  load().catch((err: Error) => {
     loading.textContent = t('home.loadFail', { msg: err.message });
   });
 
-  return { el };
+  return {
+    el,
+    cleanup() {
+      setOnPulled(null);
+    },
+  };
 }

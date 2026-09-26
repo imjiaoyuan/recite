@@ -8,7 +8,6 @@ import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
 import { runSync, syncConfigured, sameOriginStore, validSyncKey } from '../sync';
-
 declare const APP_VERSION: string; // injected at build time (vite.config.ts define)
 import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
@@ -116,7 +115,13 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
       const r = await runSync();
       btn.removeAttribute('disabled');
       if (label) label.textContent = t('sync.now');
-      toast(r.ok ? t('sync.ok') : t('sync.fail', { msg: r.error || '' }));
+      if (r.ok && r.pulled > 0) {
+        // Fresh data landed from another device — offer an instant reload so it
+        // actually shows up (stale views won't re-render on their own).
+        toast(t('sync.pulled', { n: r.pulled }), { label: t('pwa.reload'), onClick: () => location.reload() });
+      } else {
+        toast(r.ok ? t('sync.ok') : t('sync.fail', { msg: r.error || '' }));
+      }
       renderSync(); // refresh last-sync time
     }
 

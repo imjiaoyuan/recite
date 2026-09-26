@@ -188,24 +188,45 @@ export function validSyncKey(k: string): boolean {
 
 let syncing = false;
 
+// Views register this to re-render themselves in place when a sync pulls in
+// data from another device (e.g. the home grid refreshing its due counts right
+// after boot auto-sync, without a manual reload). Only the view that can react
+// cheaply should register — set it to null on cleanup.
+type SyncListener = (pulled: number) => void;
+let onPulled: SyncListener | null = null;
+export function setOnPulled(cb: SyncListener | null): void {
+  onPulled = cb;
+}
+
 // Full round: pull → merge → apply locally → push. Guarded so overlapping calls
-// (startup auto-sync racing a session-end sync) coalesce into one.
-export async function runSync(): Promise<{ ok: boolean; error?: string }> {
+// (startup auto-sync racing a session-end sync) coalesce into one. Resolves
+// with `pulled` = how many word states came in from the cloud and beat the
+// local copies — 0 means nothing changed locally and the UI needn't react.
+export async function runSync(): Promise<{ ok: boolean; error?: string; pulled: number }> {
   const meta = getMeta();
-  if (!syncConfigured() || syncing) return { ok: false, error: 'busy' };
+  if (!syncConfigured() || syncing) return { ok: false, error: 'busy', pulled: 0 };
   syncing = true;
   try {
     const remote = await pullRemote(meta).catch((e) => {
       throw new Error(`pull failed: ${String(e && e.message ? e.message : e)}`);
     });
     const local = snapshot();
-    const merged = remote ? merge(local, remote) : local;
+    let pulled = 0;
+    let merged = local;
+    if (remote) {
+      merged = merge(local, remote);
+      for (const k in remote.state) {
+        const l = local.state[k];
+        if (!l || (remote.state[k].lastReviewed ?? 0) > (l.lastReviewed ?? 0)) pulled++;
+      }
+    }
     applyMerged(merged);
     await pushMerged(meta, merged).catch((e) => {
       throw new Error(`push failed: ${String(e && e.message ? e.message : e)}`);
     });
     setMeta({ syncLast: Date.now() });
-    return { ok: true };
+    if (pulled > 0) onPulled?.(pulled);
+    return { ok: true, pulled };
   } finally {
     syncing = false;
   }

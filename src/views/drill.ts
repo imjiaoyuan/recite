@@ -3,7 +3,7 @@ import { h, shuffle } from '../ui';
 import { getDifficult, getMeta, bumpActivity } from '../store';
 import { loadList, loadSentences } from '../data';
 import { schedule } from '../srs';
-import { autoSync } from '../sync';
+import { autoSync, setOnPulled } from '../sync';
 import { t } from '../i18n';
 import { GRADES } from '../grades';
 import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
@@ -20,6 +20,13 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
   const bar = topbar(navigate, t('drill.title'));
   const area = h('div', { class: 'card-area' }, loadingEl());
   el.append(bar, area);
+
+  // The difficult-words queue comes entirely from SRS state, which boot
+  // auto-sync may top up from another device — rebuild in place (only when
+  // still waiting; mid-session grades would be lost).
+  setOnPulled(() => {
+    if (idx === 0 && !revealed && !session.total) build();
+  });
 
   function drawDone(): void {
     area.innerHTML = '';
@@ -79,7 +86,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
   }
   document.addEventListener('keydown', onKey);
 
-  (async () => {
+  async function build(): Promise<void> {
     const diff = getDifficult();
     if (!diff.length) {
       area.innerHTML = '';
@@ -110,10 +117,14 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
     }
     shuffle(q0);
     queue = q0;
+    idx = 0;
+    revealed = false;
     render(); // first card as soon as the words are in
     sentences = await loadSentences(); // examples stream in behind it, never blocking
     render();
-  })().catch((err: Error) => {
+  }
+
+  build().catch((err: Error) => {
     area.innerHTML = '';
     area.append(loadFailEl(err));
   });
@@ -122,6 +133,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
     el,
     cleanup() {
       document.removeEventListener('keydown', onKey);
+      setOnPulled(null);
     },
   };
 }
