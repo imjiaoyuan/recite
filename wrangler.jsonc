@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "recite-sync",
+  // main + assets.directory are repo-root-relative because this config lives
+  // at the root. Root placement is deliberate: Workers Builds (Git
+  // integration) and the Deploy to Cloudflare button run their default
+  // `npx wrangler deploy` from the repo root, so out of the box a push to
+  // main builds dist/ and deploys — no `-c workers/sync/...` flag, no manual
+  // build-command editing, and no "Hello World" placeholder surviving a
+  // failed deploy.
+  "main": "workers/sync/index.ts",
+  "compatibility_date": "2025-01-01",
+  // The site itself rides along as static assets. dist/ is a build artifact
+  // (.gitignored) produced by `npm run build`; the Workers Builds build
+  // command / Deploy button run it before deploying. Serving app + storage
+  // from one origin is what removes the server-URL field from the UI — the
+  // KV bound at deploy time IS the data store, and the served page is stamped
+  // so it knows that.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Without this, matching asset requests are served directly by the assets
+    // layer and NEVER reach the worker — so the <meta name="recite-sync"> stamp
+    // (and the KV routes on asset-like paths) would silently never apply.
+    "run_worker_first": true
+  },
+  // The Deploy button provisions a fresh KV namespace and rewrites this id
+  // for each deployment; a Git-integration deploy uses the id as committed.
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "03dd6f9574134775988cfc88a7b940a5"
+    }
+  ],
+  "vars": {
+    "TOKEN": ""
+  }
+}

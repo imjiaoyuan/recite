@@ -1,7 +1,10 @@
 // recite-sync — a Cloudflare Worker that serves the app AND is its data store.
 //
-// Deploy it with the "Deploy to Cloudflare" button in the repo README. The
-// pipeline builds the site (dist/) and uploads it as Worker static assets;
+// Deploy it with the "Deploy to Cloudflare" button in the repo README, or by
+// importing the repo through Cloudflare's Git integration (Workers Builds):
+// both run the root package.json's `build` + `deploy` scripts against the
+// repo-root wrangler.jsonc, so a push to main deploys with zero
+// configuration. The pipeline builds the site (dist/) and uploads it as Worker static assets;
 // the KV namespace bound at deploy time IS the storage — no URLs to configure
 // anywhere, because the app and its data live on the same origin by design:
 //
@@ -10,6 +13,13 @@
 //   OPTIONS *            → CORS preflight (for cross-origin users of the
 //                          GitHub Pages demo, who paste this URL by hand)
 //   anything else        → static assets from dist/ (SPA fallback to index.html)
+//
+// The wrangler config lives at the REPO ROOT (not beside this file) because
+// Workers Builds and the Deploy button run their default `npx wrangler
+// deploy` from the root and only look for wrangler.jsonc there — a
+// config-in-subdirectory setup is exactly what left fresh Workers stuck on
+// their "Hello World" placeholder script. Locally, `npm run deploy:worker`
+// (build + deploy) also runs from the root, so everything shares one path.
 //
 // HTML responses are stamped with <meta name="recite-sync"> — the served page
 // thereby KNOWS "the origin I came from has a KV behind it", and the app hides

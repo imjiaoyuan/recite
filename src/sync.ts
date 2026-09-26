@@ -223,7 +223,7 @@ export async function autoSync(): Promise<void> {
 }
 
 // ---- Same-origin data store ----
-// A deployment of workers/sync serves the app AND is its data store: the
+// A deployment of the sync worker serves the app AND is its data store: the
 // worker stamps <meta name="recite-sync"> into every HTML response, so the
 // page knows "the origin I came from has the KV behind it". No probing, no
 // URLs: on such a deployment the sync server is always location.origin and

@@ -67,3 +67,7 @@ There is **no test framework** in this project — do not invent test commands.
 ## Deploy
 
 GitHub Actions (`.github/workflows/deploy.yml`) builds and publishes `dist/` to GitHub Pages on push to `main`. Because of the subpath deploy, keep `base: './'` (relative asset paths) in `vite.config.ts`.
+
+## Cloudflare sync worker
+
+`wrangler.jsonc` sits at the **repo root** (entry point: `workers/sync/index.ts`, assets: `./dist`) — deliberately, because Cloudflare's Git integration (Workers Builds) and the Deploy to Cloudflare button run their default `npx wrangler deploy` from the repo root and only look for a config there; a config-in-subdirectory silently fails and leaves the Worker on its "Hello World" placeholder. Those cloud builds auto-detect the root `package.json`'s `build` + `deploy` scripts, so pushing to main deploys with zero configuration. Locally: `npm run deploy:worker` (build + deploy from the root). `.github/workflows/deploy-sync.yml` is the token-based alternative (needs `CLOUDFLARE_API_TOKEN`) and can be deleted if you deploy via Git integration. The deployed Worker serves BOTH the app and the sync API on one origin — see the header comment in `workers/sync/index.ts` and the cloud-sync section of the README.

@@ -103,8 +103,12 @@ Deploy your own copy — app + data store on one origin, free, ~2 minutes:
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/imjiaoyuan/recite)
 
 1. Click the button above, log in to Cloudflare (a free account works), and let it
-   clone + build + deploy the repo — the Worker lives in
-   [`workers/sync/`](workers/sync/) and ships the built site as static assets.
+   clone + build + deploy the repo — the Worker entry point lives in
+   [`workers/sync/index.ts`](workers/sync/index.ts) (with `wrangler.jsonc` at
+   the repo root) and ships the built site as static assets. Cloudflare's
+   build system reads the repo-root `package.json`, so its default
+   `build` + `deploy` scripts (`npm run build`, `wrangler deploy`) do the
+   right thing — no manual configuration needed.
 2. The setup page asks you to provision a KV namespace — confirm the default.
 3. When deployment finishes, open `https://recite-sync.<your-account>.workers.dev`
    — **that page IS the app**, and its own origin is the data store (a
@@ -116,8 +120,11 @@ Deploy your own copy — app + data store on one origin, free, ~2 minutes:
    paste, ever.
 
 The GitHub Pages copy of the app still works as a client: there you do paste
-the sync server URL by hand (the URL field stays). WebDAV is the self-hosted
-alternative — see below.
+the sync server URL by hand (the URL field stays). Prefer Git integration over
+the button? Import the repo via Cloudflare's dashboard (**Workers & Pages →
+Import a repository**) — the same root `wrangler.jsonc` + `package.json`
+scripts make the default `npx wrangler deploy` work as-is. WebDAV is the
+self-hosted alternative — see below.
 
 The sync code is the credential: it doubles as the KV key. Anyone who knows the
 URL **and** the code can read/overwrite that data, so keep the code to yourself.

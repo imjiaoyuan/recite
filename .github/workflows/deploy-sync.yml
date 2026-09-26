@@ -5,15 +5,18 @@ name: Deploy sync worker
 # same origin — opening it is all the setup a device needs: the page is
 # stamped with <meta name="recite-sync"> and hides the server-URL field.
 #
-# Requires repo secrets CLOUDFLARE_API_TOKEN (+ optional CLOUDFLARE_ACCOUNT_ID)
-# from a token with Workers Scripts:Edit. Without them this workflow is a no-op
-# for you — use the Deploy button or `npm run deploy:worker` instead.
+# NOTE: this workflow is only needed when deploying with an API token from
+# GitHub Actions. If you instead use Cloudflare's Git integration (Workers
+# Builds) or the Deploy to Cloudflare button, cloud-side builds run the
+# repo-root package.json scripts (`build` + `deploy`) against the root
+# wrangler.jsonc on every push — you can delete this workflow entirely.
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - 'wrangler.jsonc'
       - 'workers/sync/**'
       - 'src/**'
       - 'public/**'
@@ -38,8 +41,9 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # From the repo root (NOT workers/sync/): wrangler resolves
-      # assets.directory relative to the config file, and dist/ is at the root.
+      # wrangler.jsonc sits at the repo root, so a plain `npx wrangler deploy`
+      # (via the pinned devDependency) works from the default working directory
+      # — same command the cloud-side Git-integration build runs.
       # NOTE: secrets can't be referenced in `if:` (GitHub rejects the file),
       # so the no-token case is handled inside the script.
       - name: Deploy worker (site + sync API)
@@ -48,7 +52,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::notice::CLOUDFLARE_API_TOKEN not set — worker not auto-deployed. Use the Deploy button or npm run deploy:worker."
+            echo "::notice::CLOUDFLARE_API_TOKEN not set — worker not auto-deployed. Use Cloudflare's Git integration, the Deploy button, or npm run deploy:worker."
             exit 0
           fi
-          npx wrangler@latest deploy -c workers/sync/wrangler.jsonc
+          npx wrangler deploy
