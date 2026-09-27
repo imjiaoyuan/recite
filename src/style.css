@@ -348,6 +348,10 @@ a { color: var(--accent); }
 .done .muted { margin-bottom: 8px; }
 .done .btn { margin-top: 16px; }
 .done .btn + .btn { margin-left: 8px; }
+.done-more { display: none; margin-top: 20px; }
+.done-more .row { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.done-more .row .btn { margin-top: 0; }
+.done-more .row input { text-align: center; }
 
 /* ---- Spell ---- */
 .spell-prompt { font-size: 20px; line-height: 1.5; font-family: var(--serif); }
@@ -526,6 +530,27 @@ a { color: var(--accent); }
   margin-top: 10px; user-select: none;
 }
 .sync-help .dd-hint { margin: 8px 0 0; }
+
+/* Home header sync status pill — the visible receipt of automatic syncing
+   (boot / session end / 5-min timer / tab-reveal / reconnect). */
+.sync-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--muted);
+  font-size: 12px; line-height: 1; white-space: nowrap;
+  cursor: pointer;
+}
+.sync-pill .icon { width: 11px; height: 11px; }
+.sync-pill.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 30%, transparent); }
+.sync-pill.fail { color: var(--again); border-color: color-mix(in srgb, var(--again) 30%, transparent); }
+.sync-pill.syncing { color: var(--accent); }
+.pill-spinner {
+  width: 11px; height: 11px; flex: none;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 
 /* ---- Heatmap ---- */
 .heatmap-card { padding: 18px; }

@@ -3,14 +3,16 @@
 //   q=1 -> Again, q=3 -> Hard, q=4 -> Good, q=5 -> Easy
 // Short-term learning steps are disabled: our 墨墨-style in-session requeue
 // already handles same-session reinforcement, and the whole app assumes
-// day-granularity due dates.
+// day-granularity due dates. Only the FIRST grade per local calendar day
+// advances FSRS — same-day repeats (requeue, spelling retry) just count
+// exposure, see schedule().
 //
 // Legacy SM-2 states (reps/ef/interval without FSRS fields) migrate lazily on
 // the next grade: the old interval becomes the memory stability and the ease
 // factor maps inversely onto FSRS difficulty.
 import { fsrs, createEmptyCard, Rating, State } from 'ts-fsrs';
 import type { Card, FSRS, Grade } from 'ts-fsrs';
-import { getMeta, getWordState, setWordState } from './store';
+import { dateKey, getMeta, getWordState, setWordState } from './store';
 import type { WordState } from './types';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -41,6 +43,10 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 // Rebuild the FSRS card from persisted state, migrating legacy SM-2 entries.
+// elapsed_days floors at 1: with short-term steps off, a sub-day elapsed can
+// only be the same learning episode spilling past midnight — reporting "0 days"
+// to FSRS resets stability as if the card were new (the collapse we guard
+// against in schedule()).
 function toCard(prev: WordState | null, now: number): Card {
   if (!prev || (prev.seen || 0) === 0) return createEmptyCard(new Date(now));
   const last = prev.lastReviewed ?? prev.due - (prev.interval || 1) * DAY;
@@ -49,7 +55,7 @@ function toCard(prev: WordState | null, now: number): Card {
       due: new Date(prev.due),
       stability: prev.s,
       difficulty: prev.d,
-      elapsed_days: Math.max(0, Math.round((now - last) / DAY)),
+      elapsed_days: Math.max(1, Math.round((now - last) / DAY)),
       scheduled_days: Math.max(0, prev.interval || 0),
       learning_steps: 0,
       reps: prev.reps || 0,
@@ -65,7 +71,7 @@ function toCard(prev: WordState | null, now: number): Card {
     due: new Date(prev.due),
     stability: interval,
     difficulty: clamp(Math.round((11 - 2.5 * (prev.ef || 2.5)) * 100) / 100, 1, 10),
-    elapsed_days: Math.max(0, Math.round((now - last) / DAY)),
+    elapsed_days: Math.max(1, Math.round((now - last) / DAY)),
     scheduled_days: interval,
     learning_steps: 0,
     reps: prev.reps || 1,
@@ -83,9 +89,24 @@ const RATING_BY_Q: Record<number, Grade> = {
 };
 
 // Schedule a word by grade q (1/3/4/5) and persist.
+//
+// 墨墨 rule: only the FIRST grade on a local calendar day shapes the word's
+// future (interval/due). Same-day re-grades — study's requeue after 忘了/困难,
+// a spelling retry — count as exposure but must NOT re-run FSRS: with
+// elapsed_days = 0 the scheduler treats the card as brand-new and stability
+// collapses to ~2.3 days, pinning every weak word at a 3-day interval forever
+// ("the intervals never grow" bug).
 export function schedule(listId: string, word: string, q: number, now = Date.now()): WordState {
   const prev = getWordState(listId, word);
   const rating = RATING_BY_Q[q] ?? Rating.Good;
+  // Again flags a difficult word, Good/Easy clears it, Hard keeps the old flag.
+  const diff = rating === Rating.Again ? true : rating === Rating.Hard ? !!prev?.diff : false;
+  if (prev?.lastReviewed != null && dateKey(new Date(prev.lastReviewed)) === dateKey(new Date(now))) {
+    // Same-day re-grade: keep today's schedule untouched, just count the exposure.
+    const st: WordState = { ...prev, seen: (prev.seen || 0) + 1, diff };
+    setWordState(listId, word, st);
+    return st;
+  }
   const c = scheduler().next(toCard(prev, now), new Date(now), rating).card;
   const st: WordState = {
     reps: c.reps,
@@ -98,8 +119,7 @@ export function schedule(listId: string, word: string, q: number, now = Date.now
     d: Math.round(c.difficulty * 100) / 100,
     l: c.lapses,
     state: c.state,
-    // Again flags a difficult word, Good/Easy clears it, Hard keeps the old flag.
-    diff: rating === Rating.Again ? true : rating === Rating.Hard ? !!prev?.diff : false,
+    diff,
   };
   setWordState(listId, word, st);
   return st;

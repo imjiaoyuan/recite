@@ -12,6 +12,15 @@ declare const APP_VERSION: string; // injected at build time (vite.config.ts def
 import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
 
+// Shared by the settings page and the home sync pill: "14:05" today, "6/1 14:05"
+// otherwise (syncLast is epoch-ms, 0 = never).
+export function fmtSyncTime(ms: number): string {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return d.toDateString() === new Date().toDateString() ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+}
+
 export default function settings(_params: string[], { navigate }: Ctx): ViewResult {
   const meta = getMeta();
   const el = h('div', { class: 'page' });
@@ -83,14 +92,6 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
 
   const syncSection = h('div', { class: 'sync-box' });
 
-  function fmtSyncTime(ms: number): string {
-    if (!ms) return t('sync.never');
-    const d = new Date(ms);
-    const sameDay = d.toDateString() === new Date().toDateString();
-    const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    return sameDay ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
-  }
-
   function renderSync(): void {
     const m = getMeta();
     syncSection.innerHTML = '';
@@ -152,7 +153,11 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
         h('button', { class: 'btn', disabled: !syncConfigured(), onclick: (e: Event) => doSync(e.currentTarget as HTMLElement) },
           icon('rotate-left'), h('span', { class: 'btn-label' }, t('sync.now'))),
       ),
-      h('div', { class: 'dd-hint' }, t('sync.last', { time: fmtSyncTime(m.syncLast) })),
+      h('div', { class: 'dd-hint' },
+        m.syncLast ? t('sync.last', { time: fmtSyncTime(m.syncLast) }) : t('sync.never'),
+        ' · ',
+        t('sync.autoNote'),
+      ),
       h('details', { class: 'sync-help' },
         h('summary', {}, t('sync.deploy')),
         h('div', { class: 'dd-hint' }, t('sync.deployHint')),

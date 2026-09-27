@@ -198,6 +198,30 @@ export function setOnPulled(cb: SyncListener | null): void {
   onPulled = cb;
 }
 
+// Sync status indicator lives in the home header (see home.ts). runSync()
+// broadcasts here so the pill can show 进行中 → 已同步/失败 — without this the
+// only visible proof of sync was a toast on manual sync. The last status
+// persists in meta (syncStatus) so a fresh home render shows the last round's
+// outcome instead of an empty idle state.
+export interface SyncStatusInfo {
+  s: 'idle' | 'syncing' | 'ok' | 'fail';
+  at: number; // epoch-ms of the last ok (0 = never succeeded)
+}
+type SyncStatus = SyncStatusInfo['s'];
+let onStatus: ((s: SyncStatus) => void) | null = null;
+export function setOnStatus(cb: ((s: SyncStatus) => void) | null): void {
+  onStatus = cb;
+}
+
+function report(s: SyncStatus): void {
+  // getMeta() returns the cached object — clone before mutating so we never
+  // poke the cache directly (the same discipline setMeta() itself follows).
+  const prev = getMeta().syncStatus || { s: 'idle' as const, at: 0 };
+  const syncStatus = { s, at: s === 'ok' ? Date.now() : (prev.at || 0) };
+  setMeta({ syncStatus });
+  onStatus?.(s);
+}
+
 // Full round: pull → merge → apply locally → push. Guarded so overlapping calls
 // (startup auto-sync racing a session-end sync) coalesce into one. Resolves
 // with `pulled` = how many word states came in from the cloud and beat the
@@ -206,6 +230,7 @@ export async function runSync(): Promise<{ ok: boolean; error?: string; pulled: 
   const meta = getMeta();
   if (!syncConfigured() || syncing) return { ok: false, error: 'busy', pulled: 0 };
   syncing = true;
+  report('syncing');
   try {
     const remote = await pullRemote(meta).catch((e) => {
       throw new Error(`pull failed: ${String(e && e.message ? e.message : e)}`);
@@ -225,22 +250,56 @@ export async function runSync(): Promise<{ ok: boolean; error?: string; pulled: 
       throw new Error(`push failed: ${String(e && e.message ? e.message : e)}`);
     });
     setMeta({ syncLast: Date.now() });
+    report('ok');
     if (pulled > 0) onPulled?.(pulled);
     return { ok: true, pulled };
+  } catch (e) {
+    // Auto-sync callers swallow this (console-only); the indicator still shows
+    // the failure so silence never reads as "not configured / not working".
+    report('fail');
+    throw e;
   } finally {
     syncing = false;
   }
 }
 
-// Background sync for startup / session end: silent on success, console-only on
-// failure (the settings page shows the last error via syncLast).
+// ---- Scheduled / reactive auto-sync ----
+// autoSync() fires at boot and at session end, but an app left open all day
+// (or resumed from the background) would never sync again. A quiet timer plus
+// visibility/online listeners cover that — all funneling into the same guarded
+// runSync(), so overlapping triggers coalesce and nothing double-pushes.
+const AUTO_INTERVAL = 5 * 60 * 1000;
+let autoTimer: ReturnType<typeof setInterval> | null = null;
+
+function onVisible(): void {
+  // Tab re-shown after ≥30s hidden (phone unlocked, desktop tab switched back):
+  // pull whatever the other device did meanwhile. Fresh tabs skip — the boot
+  // sync just ran for them.
+  if (document.visibilityState === 'visible' && Date.now() - lastAuto > 30_000) autoSync();
+}
+
+function onOnline(): void {
+  autoSync(); // connection is back — flush pending progress
+}
+
+let lastAuto = 0;
 export async function autoSync(): Promise<void> {
+  lastAuto = Date.now();
   if (!syncConfigured()) return;
   try {
     await runSync();
   } catch (e) {
     console.warn('[sync] auto-sync failed', e);
   }
+}
+
+// Installed once from main.ts: the periodic timer for the lifetime of the app,
+// plus the two reactive triggers (swipe back into the app, Wi-Fi reconnects).
+export function startAutoSync(): void {
+  if (autoTimer) return;
+  autoTimer = setInterval(autoSync, AUTO_INTERVAL);
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('online', onOnline);
 }
 
 // ---- Same-origin data store ----

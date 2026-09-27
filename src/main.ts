@@ -6,7 +6,7 @@ import { onQuotaExceeded, getMeta, setMeta } from './store';
 import { toast } from './ui';
 import { loadMeta, loadList, loadSentences } from './data';
 import { purgeLegacyCaches } from './pwa';
-import { autoSync } from './sync';
+import { autoSync, startAutoSync } from './sync';
 import home from './views/home';
 import study from './views/study';
 import spell from './views/spell';
@@ -24,12 +24,14 @@ interface Route {
   view: (params: string[], ctx: Ctx) => ViewResult;
 }
 
-// Hash-based router.
+// Hash-based router. The per-list mode routes accept an optional `?extra=N`
+// query — the done screen's 加学 (top-up) button, asking for N new words beyond
+// today's quota.
 const routes: Route[] = [
   { re: /^#\/?$/, view: home },
-  { re: /^#\/study\/([\w-]+)$/, view: study },
-  { re: /^#\/spell\/([\w-]+)$/, view: spell },
-  { re: /^#\/dictation\/([\w-]+)$/, view: dictation },
+  { re: /^#\/study\/([\w-]+)(?:\?extra=(\d+))?$/, view: study },
+  { re: /^#\/spell\/([\w-]+)(?:\?extra=(\d+))?$/, view: spell },
+  { re: /^#\/dictation\/([\w-]+)(?:\?extra=(\d+))?$/, view: dictation },
   { re: /^#\/drill\/?$/, view: drill },
   { re: /^#\/search\/?$/, view: search },
   { re: /^#\/stats\/?$/, view: stats },
@@ -131,6 +133,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   notifyUnsupportedLang();
   autoSync(); // pull the latest progress in the background (no-op unless configured)
+  startAutoSync(); // 5-min timer + tab-reveal + reconnect triggers, for the app's lifetime
   // Warm the heavyweight data in the background so entering a list isn't blank
   // while it loads: every mode needs sentences.json (4+ MB), and the last-studied
   // list is where the user almost always resumes. Returning users only (a

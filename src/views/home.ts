@@ -1,10 +1,11 @@
 import { h } from '../ui';
 import { icon } from '../icons';
-import { getDifficult, statsByList } from '../store';
+import { getDifficult, statsByList, getMeta } from '../store';
 import { loadMeta } from '../data';
 import { newToday } from '../session';
-import { setOnPulled } from '../sync';
-import { t, listName, listDesc } from '../i18n';
+import { setOnPulled, setOnStatus, syncConfigured } from '../sync';
+import { t } from '../i18n';
+import { listName, listDesc } from '../i18n';
 import { loadingEl } from './common';
 import type { Ctx, ViewResult } from '../types';
 
@@ -15,6 +16,37 @@ function iconBtn(name: string, title: string, onclick: () => void): HTMLElement 
 export default function home(_params: string[], { navigate }: Ctx): ViewResult {
   const el = h('div', { class: 'page' });
   const diffCount = getDifficult().length;
+
+  // Sync status pill in the header. Sync is automatic (boot, session end, a
+  // 5-min timer, tab-reveal, reconnect) and silent by design — this pill is
+  // the visible receipt: syncing → synced (with time) / offline-failed, and a
+  // tap opens settings. Hidden entirely when sync isn't configured.
+  const syncPill = h('button', { class: 'sync-pill', onclick: () => navigate('#/settings') });
+  function drawSync(): void {
+    const st = getMeta().syncStatus || { s: 'idle' as const, at: 0 }; // old installs predate the field
+    syncPill.innerHTML = '';
+    if (!syncConfigured()) {
+      syncPill.style.display = 'none';
+      return;
+    }
+    syncPill.style.display = '';
+    const label = st.s === 'idle' ? 'sync.idle'
+      : st.s === 'syncing' ? 'sync.doing'
+      : st.s === 'ok' ? (st.at ? 'sync.doneAt' : 'sync.done')
+      : 'sync.failShort';
+    syncPill.className = `sync-pill ${st.s}`;
+    syncPill.append(
+      st.s === 'syncing' ? h('span', { class: 'pill-spinner' }) : icon(st.s === 'fail' ? 'cloud-arrow-down' : 'check'),
+      h('span', {}, st.s === 'ok' && st.at ? t(label, { time: fmtClock(st.at) }) : t(label)),
+    );
+  }
+  function fmtClock(ms: number): string {
+    const d = new Date(ms);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+  drawSync();
+  // report() persists the new status into meta before notifying — just redraw.
+  setOnStatus(() => drawSync());
 
   // Boot auto-sync may pull in progress from another device after the grid has
   // already rendered from local state — redraw in place so the counts/due
@@ -30,6 +62,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
         h('span', { class: 'tag' }, t('app.subtitle')),
       ),
       h('div', { class: 'head-actions' },
+        syncPill,
         iconBtn('plus', t('home.newList'), () => navigate('#/list/new')),
         iconBtn('magnifying-glass', t('home.search'), () => navigate('#/search')),
         iconBtn('bolt', t('home.difficult') + (diffCount ? ` (${diffCount})` : ''), () => navigate('#/drill')),
@@ -89,6 +122,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     el,
     cleanup() {
       setOnPulled(null);
+      setOnStatus(null);
     },
   };
 }

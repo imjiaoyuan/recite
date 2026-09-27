@@ -30,6 +30,7 @@ const defaultMeta: Meta = {
   syncKey: '',
   syncToken: '',
   syncLast: 0,
+  syncStatus: { s: 'idle', at: 0 },
   seenVersion: '',
 };
 

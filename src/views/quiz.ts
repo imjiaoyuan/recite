@@ -10,9 +10,9 @@
 // preserved, so a slow fetch never blocks or wipes typing.
 import { h } from '../ui';
 import { icon } from '../icons';
-import { getMeta, setMeta, bumpActivity, bumpNew, getWordState } from '../store';
+import { getMeta, setMeta, bumpActivity, bumpNew, getWordState, getState } from '../store';
 import { loadList, loadSentences } from '../data';
-import { buildSession, dailyLimit } from '../session';
+import { buildSession, dailyLimit, topupOffer } from '../session';
 import { schedule } from '../srs';
 import { autoSync } from '../sync';
 import { speak } from '../speech';
@@ -46,18 +46,21 @@ export interface QuizHooks {
 }
 
 export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedbackExtra, repromptOnSentences: reprompt }: QuizHooks) {
-  return function ([listId]: string[], { navigate }: Ctx): ViewResult {
+  return function ([listId, extra]: string[], { navigate }: Ctx): ViewResult {
     const el = h('div', { class: 'page page-focus' });
     let queue: WordEntry[] = [];
     let idx = 0;
     let answered: Answered | false = false;
     let sentences: Record<string, Example[]> = {};
+    let listSize = 0; // set once the list loads — feeds the done screen's top-up offer
     const session = { total: 0, ok: 0 };
-    // 墨墨-style: the LATEST answer decides (not the first one) — a wrong answer
-    // requeues at the tail for another pass today, up to 2 times per word. FSRS
-    // otherwise wouldn't resurface the word until its next due date. The retry
-    // counts as another attempt in the totals (accuracy reflects retries).
-    const REVISIT_MAX = 2;
+    // Manual top-up beyond today's quota (加学 from the done screen): '?extra=N'.
+    const extraNew = Math.max(0, parseInt(new URLSearchParams(extra || '').get('extra') || '', 10) || 0);
+    // 墨墨-style: a wrong answer requeues at the tail for another pass today.
+    // The retry decides — pass it and the word is done for the day (its
+    // long-term schedule was already set by the first answer, see srs.schedule);
+    // fail again and the counter resets, so it keeps cycling until typed right.
+    const REVISIT_MAX = 1;
     const revisited = new Map<string, number>();
 
     let timerId: ReturnType<typeof setInterval> | null = null;
@@ -101,6 +104,10 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
       const empty = queue.length === 0;
       const acc = session.total ? Math.round((session.ok / session.total) * 100) : 0;
       if (!empty) autoSync(); // session ended — push progress in the background
+      // 加学: quota used up but still want more — a manual top-up beyond today's
+      // limit, handed to the next session via the ?extra= param (bypasses the
+      // recite:daily quota on purpose).
+      const offer = topupOffer(listId, Math.max(0, listSize - startedCount()));
       area.append(
         h('div', { class: 'done' },
           h('div', { class: 'done-title' }, empty ? t('done.noneSpell') : t('done.titleSpell')),
@@ -109,8 +116,23 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
             h('button', { class: 'btn primary', onclick: () => navigate(`${route}/${listId}`) }, t('done.again')),
             h('button', { class: 'btn', onclick: () => navigate('#/') }, t('done.home')),
           ),
+          offer > 0
+            ? h('div', { class: 'done-more' },
+                h('div', { class: 'muted' }, t('done.moreHint', { limit: dailyLimit(), n: offer })),
+                h('button', { class: 'btn', onclick: () => navigate(`${route}/${listId}?extra=${offer}`) }, t('done.moreBtn', { n: offer })),
+              )
+            : null,
         ),
       );
+    }
+
+    // Words in this list with any SRS state — how many unseen words remain
+    // for the done screen's top-up offer.
+    function startedCount(): number {
+      const state = getState();
+      let n = 0;
+      for (const k in state) if (k.startsWith(`${listId}:`) && !state[k].known) n++;
+      return n;
     }
 
     function render(): void {
@@ -179,10 +201,11 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
       schedule(listId, e.word, 1);
       bumpActivity(1);
       session.total += 1;
-      if ((revisited.get(e.word) || 0) < REVISIT_MAX) {
-        queue.push(e);
-        revisited.set(e.word, (revisited.get(e.word) || 0) + 1);
-      }
+      // Wrong: always comes back. Botching the retry resets the counter (it
+      // keeps cycling until typed right); passing the retry ends the loop.
+      queue.push(e);
+      if ((revisited.get(e.word) || 0) >= REVISIT_MAX) revisited.delete(e.word);
+      else revisited.set(e.word, (revisited.get(e.word) || 0) + 1);
       answered = { ok: false, timeout };
       render();
     }
@@ -210,7 +233,8 @@ export function quiz({ route, placeholderKey, cardClass, prompt, onPrompt, feedb
     (async () => {
       setMeta({ selectedList: listId });
       const list = await loadList(listId);
-      const s = buildSession(list, listId, dailyLimit());
+      listSize = list.length;
+      const s = buildSession(list, listId, dailyLimit(), extraNew);
       queue = s.due.concat(s.fresh);
       render(); // first card as soon as the list is in
       sentences = await loadSentences();
