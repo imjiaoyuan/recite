@@ -59,7 +59,7 @@ export interface Meta {
   syncLast: number;
   // Last sync round's outcome, for the home header's status pill. Written by
   // sync.report(); never synced to the cloud (meta is per-device).
-  syncStatus: { s: 'idle' | 'syncing' | 'ok' | 'fail'; at: number };
+  syncStatus: { s: 'idle' | 'syncing' | 'ok' | 'fail'; at: number; phase?: 'pull' | 'merge' | 'push' };
   seenVersion: string; // app version last run on this device ('' = first visit); drives the upgrade toast
   // ttsEngine ('system' | 'kokoro') existed while the offline-TTS fallback did;
   // stored values from old installs/backups are tolerated and ignored.

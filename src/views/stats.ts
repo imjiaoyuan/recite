@@ -103,7 +103,7 @@ export default function stats(_params: string[], { navigate }: Ctx): ViewResult 
     el.append(h('div', { class: 'section-label', style: 'margin-top:24px' }, t('stats.section')));
     for (const list of m.lists) {
       const total = list.count;
-      const s = byList[list.id] || { started: 0, due: 0 };
+      const s = byList[list.id] || { started: 0, known: 0, due: 0 };
       totalSeen += s.started;
       totalDue += s.due;
       const pct = total ? (s.started / total) * 100 : 0;

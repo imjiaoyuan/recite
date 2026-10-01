@@ -199,27 +199,50 @@ export function setOnPulled(cb: SyncListener | null): void {
 }
 
 // Sync status indicator lives in the home header (see home.ts). runSync()
-// broadcasts here so the pill can show 进行中 → 已同步/失败 — without this the
-// only visible proof of sync was a toast on manual sync. The last status
-// persists in meta (syncStatus) so a fresh home render shows the last round's
-// outcome instead of an empty idle state.
+// broadcasts here so the pill can show 拉取中→合并→上传→已同步/失败 — without
+// this the only visible proof of sync was a toast on manual sync. The last
+// status persists in meta (syncStatus) so a fresh home render shows the last
+// round's outcome instead of an empty idle state. The `phase` field (optional:
+// old installs predate it) splits 'syncing' into pull/merge/push so the pill
+// can narrate progress instead of freezing on one label while the main thread
+// chews through multi-MB JSON.
 export interface SyncStatusInfo {
   s: 'idle' | 'syncing' | 'ok' | 'fail';
   at: number; // epoch-ms of the last ok (0 = never succeeded)
+  phase?: 'pull' | 'merge' | 'push';
 }
 type SyncStatus = SyncStatusInfo['s'];
-let onStatus: ((s: SyncStatus) => void) | null = null;
-export function setOnStatus(cb: ((s: SyncStatus) => void) | null): void {
+let onStatus: ((s: SyncStatus, phase?: SyncStatusInfo['phase']) => void) | null = null;
+export function setOnStatus(cb: ((s: SyncStatus, phase?: SyncStatusInfo['phase']) => void) | null): void {
   onStatus = cb;
 }
 
-function report(s: SyncStatus): void {
+// One-shot subscriber that coexists with the pill's main subscription (a
+// manual sync from settings narrates phases onto the button without kicking
+// the home pill off). Returns an uninstall function.
+const statusExtras = new Set<(s: SyncStatus, phase?: SyncStatusInfo['phase']) => void>();
+export function setOnStatusOnce(cb: (s: SyncStatus, phase?: SyncStatusInfo['phase']) => void): () => void {
+  statusExtras.add(cb);
+  return () => statusExtras.delete(cb);
+}
+
+function report(s: SyncStatus, phase?: SyncStatusInfo['phase']): void {
   // getMeta() returns the cached object — clone before mutating so we never
   // poke the cache directly (the same discipline setMeta() itself follows).
   const prev = getMeta().syncStatus || { s: 'idle' as const, at: 0 };
-  const syncStatus = { s, at: s === 'ok' ? Date.now() : (prev.at || 0) };
+  const syncStatus = { s, at: s === 'ok' ? Date.now() : (prev.at || 0), phase };
   setMeta({ syncStatus });
-  onStatus?.(s);
+  onStatus?.(s, phase);
+  for (const cb of statusExtras) cb(s, phase);
+}
+
+// Let the browser paint the just-reported status BEFORE the main thread dives
+// into multi-megabyte JSON work (res.json() / stringify / applyMerged). Without
+// this, report('syncing') mutates the DOM and the very next synchronous block
+// starves the compositor — the user sees one frozen frame then a jump to 已同步,
+// which is exactly the 卡卡的 feeling. Two rAFs = past the upcoming paint.
+function yieldFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 }
 
 // Full round: pull → merge → apply locally → push. Guarded so overlapping calls
@@ -230,11 +253,14 @@ export async function runSync(): Promise<{ ok: boolean; error?: string; pulled: 
   const meta = getMeta();
   if (!syncConfigured() || syncing) return { ok: false, error: 'busy', pulled: 0 };
   syncing = true;
-  report('syncing');
+  report('syncing', 'pull');
   try {
+    await yieldFrame(); // paint the 拉取中 pill before the network + JSON work
     const remote = await pullRemote(meta).catch((e) => {
       throw new Error(`pull failed: ${String(e && e.message ? e.message : e)}`);
     });
+    report('syncing', 'merge');
+    await yieldFrame(); // paint 合并中 before the heavy local pass
     const local = snapshot();
     let pulled = 0;
     let merged = local;
@@ -246,6 +272,8 @@ export async function runSync(): Promise<{ ok: boolean; error?: string; pulled: 
       }
     }
     applyMerged(merged);
+    report('syncing', 'push');
+    await yieldFrame(); // paint 上传中 before stringify + PUT
     await pushMerged(meta, merged).catch((e) => {
       throw new Error(`push failed: ${String(e && e.message ? e.message : e)}`);
     });

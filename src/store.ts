@@ -252,19 +252,22 @@ export function getDifficult(): { listId: string; word: string }[] {
   return out;
 }
 
-// Per-list started/due counts in a single pass (replaces a full state scan per list).
-export function statsByList(): Record<string, { started: number; due: number }> {
+// Per-list started/known/due counts in a single pass (replaces a full state scan per list).
+export function statsByList(): Record<string, { started: number; known: number; due: number }> {
   const state = getState();
   const now = Date.now();
-  const out: Record<string, { started: number; due: number }> = {};
+  const out: Record<string, { started: number; known: number; due: number }> = {};
   for (const k in state) {
     const st = state[k];
     if (!st) continue;
     const i = k.indexOf(':');
     const listId = i < 0 ? k : k.slice(0, i);
-    const acc = (out[listId] ??= { started: 0, due: 0 });
+    const acc = (out[listId] ??= { started: 0, known: 0, due: 0 });
     acc.started++;
-    if (st.known) continue; // known counts as learned, never due
+    if (st.known) {
+      acc.known++; // counts as learned, never due
+      continue;
+    }
     if (st.due <= now) acc.due++;
   }
   return out;

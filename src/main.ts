@@ -26,12 +26,13 @@ interface Route {
 
 // Hash-based router. The per-list mode routes accept an optional `?extra=N`
 // query — the done screen's 加学 (top-up) button, asking for N new words beyond
-// today's quota.
+// today's quota. The tail `(?:[&#?].*)?` tolerates additional params or a
+// fragment without disabling the top-up capture.
 const routes: Route[] = [
   { re: /^#\/?$/, view: home },
-  { re: /^#\/study\/([\w-]+)(?:\?extra=(\d+))?$/, view: study },
-  { re: /^#\/spell\/([\w-]+)(?:\?extra=(\d+))?$/, view: spell },
-  { re: /^#\/dictation\/([\w-]+)(?:\?extra=(\d+))?$/, view: dictation },
+  { re: /^#\/study\/([\w-]+)(?:\?extra=(\d+))?(?:[&#?].*)?$/, view: study },
+  { re: /^#\/spell\/([\w-]+)(?:\?extra=(\d+))?(?:[&#?].*)?$/, view: spell },
+  { re: /^#\/dictation\/([\w-]+)(?:\?extra=(\d+))?(?:[&#?].*)?$/, view: dictation },
   { re: /^#\/drill\/?$/, view: drill },
   { re: /^#\/search\/?$/, view: search },
   { re: /^#\/stats\/?$/, view: stats },

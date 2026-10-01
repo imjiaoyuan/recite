@@ -1,12 +1,12 @@
 import { h } from '../ui';
 import { icon } from '../icons';
-import { getMeta, setMeta, bumpActivity, bumpNew, getWordState, getState, setWordState, removeWordState } from '../store';
+import { getMeta, setMeta, bumpActivity, bumpNew, getWordState, setWordState, removeWordState } from '../store';
 import { loadList, loadSentences } from '../data';
-import { buildSession, dailyLimit, topupOffer } from '../session';
+import { buildSession, dailyLimit, topupOffer, remainingFresh } from '../session';
 import { schedule } from '../srs';
 import { autoSync } from '../sync';
 import { t } from '../i18n';
-import { GRADES } from '../grades';
+import { GRADES, PASSES } from '../grades';
 import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
 import type { Ctx, ViewResult, WordEntry, Example, WordState } from '../types';
 
@@ -16,26 +16,24 @@ export default function study([listId, extra]: string[], { navigate }: Ctx): Vie
   let idx = 0;
   let revealed = false;
   let sentences: Record<string, Example[]> = {};
-  let listSize = 0; // set once the list loads — feeds the done screen's top-up offer
   const session = { total: 0, ok: 0 };
   // Manual top-up beyond today's quota (加学 from the done screen): '#/study/x?extra=N'.
-  const extraNew = Math.max(0, parseInt(new URLSearchParams(extra || '').get('extra') || '', 10) || 0);
-  // 墨墨-style in-session requeue. Only the FIRST grade of the day shapes the
-  // word's long-term schedule (enforced in srs.schedule) — these repeats only
-  // decide how often it loops TODAY:
-  //   q=4/5 (良好/简单): never requeued — you know it, it's done for the day;
-  //   q=3 (困难/模糊): one more pass (the word shows up at least twice);
-  //   q=1 (忘了): must come back; failing the SECOND pass resets the counter
-  //     (== keeps requeueing) so the word keeps cycling until you get it right.
-  const REVISIT_MAX = 1; // per pass, for 困难
-  const revisitCount = new Map<string, number>();
+  // The route regexp captures only the digits after '?extra=', so parse them
+  // directly — never through URLSearchParams, which would need the '?key=' part
+  // and quietly returns null for a bare '100' (the bug that made 加学 dead).
+  const extraNew = Math.max(0, parseInt(extra || '', 10) || 0);
+  // 墨墨-style in-session requeue (tiers in grades.ts PASSES). Only the FIRST
+  // grade of the day shapes the word's long-term schedule (enforced in
+  // srs.schedule) — these repeats only decide how often it loops TODAY. Each
+  // click RESETS the word's remaining passes to its tier (忘了 3 / 困难 2 /
+  // 良好 1 / 简单 0); a second 良好 in a row finishes the word.
+  const lastGrade = new Map<string, number>();
   // Every grade, oldest first — drives the unique-word totals on the done screen.
   const gradedLog: { word: string; q: number }[] = [];
   // Snapshot of the last graded card, for one-step undo ("oops, misclick").
-  // revisits saves the word's PRE-grade requeue-counter value so undo restores
-  // it exactly (a 忘了 on the extra pass *deletes* the counter — decrement
-  // can't reverse that).
-  let undoLast: { word: string; prev: WordState | null; appended: boolean; revisits: number | undefined } | null = null;
+  // queued = copies this grade appended (undo trims exactly that many from
+  // the tail); prevLast = the word's prior last-grade tier (undo restores it).
+  let undoLast: { word: string; prev: WordState | null; queued: number; prevLast: number | undefined } | null = null;
 
   const undoBtn = h('button', { class: 'btn ghost icon-only', title: t('study.undo'), onclick: undo, style: 'display:none' }, icon('rotate-left'));
   const bar = topbar(navigate, '', [undoBtn]);
@@ -57,14 +55,9 @@ export default function study([listId, extra]: string[], { navigate }: Ctx): Vie
     session.ok = ok;
   }
 
-  // Words in this list that have any SRS state (started learning) — how many
-  // unseen words remain for the done screen's top-up offer.
-  function startedCount(): number {
-    const state = getState();
-    let n = 0;
-    for (const k in state) if (k.startsWith(`${listId}:`) && !state[k].known) n++;
-    return n;
-  }
+  // The list words, kept for the done screen's top-up offer — remainingFresh()
+  // needs the actual entries, not just a count, to tell unseen from known.
+  let listWords: WordEntry[] = [];
 
   function drawDone(): void {
     area.innerHTML = '';
@@ -73,8 +66,7 @@ export default function study([listId, extra]: string[], { navigate }: Ctx): Vie
     // 加学: quota used up but still want more — a manual top-up beyond today's
     // limit. The extra words bypass recite:daily (deliberate, not quota) and
     // are handed straight to the next session via the ?extra= session param.
-    const started = startedCount();
-    const offer = topupOffer(listId, Math.max(0, listSize - started));
+    const offer = topupOffer(remainingFresh(listWords, listId));
     area.append(
       h('div', { class: 'done' },
         h('div', { class: 'done-title' }, empty ? t('done.none') : t('done.title')),
@@ -123,39 +115,44 @@ export default function study([listId, extra]: string[], { navigate }: Ctx): Vie
     const e = queue[idx];
     const word = e.word;
     const prev = getWordState(listId, word); // snapshot before schedule overwrites it
-    const revisitsBefore = revisitCount.get(word); // pre-grade counter, for exact undo
     schedule(listId, word, q);
     bumpActivity(1);
     if (!prev) bumpNew(listId); // first-ever grade = one of today's new words
     gradedLog.push({ word, q });
     recomputeCounts();
-    // Unsure answers requeue at the tail (rules in the comment at REVISIT_MAX):
-    // 忘了 always comes back — botching the revisit resets the counter so it
-    // keeps cycling; 困难 comes back once, then its second-chance result stands.
-    let appended = false;
-    if (q === 1) {
-      queue.push(e);
-      appended = true;
-      if ((revisitCount.get(word) || 0) >= REVISIT_MAX) revisitCount.delete(word); // still lost after the extra pass — reset and cycle again
-      else revisitCount.set(word, (revisitCount.get(word) || 0) + 1);
-    } else if (q === 3 && (revisitCount.get(word) || 0) < REVISIT_MAX) {
-      queue.push(e);
-      revisitCount.set(word, (revisitCount.get(word) || 0) + 1);
-      appended = true;
+    // Tiered reset (PASSES in grades.ts): first DROP this word's pending
+    // copies from the queue (a weaker grade may have left up to 3), then push
+    // the new tier's count. Each click therefore *replaces* the plan: 忘了 3,
+    // 困难 2, 良好 1, 简单 0. A second consecutive 良好 ends the word (its
+    // confirmation pass was successful — nothing more to reinforce).
+    const prevLast = lastGrade.get(word);
+    // Tiered reset (PASSES in grades.ts): every click first DROPS this word's
+    // pending copies from the queue (a weaker grade may have left up to 4),
+    // then pushes the new tier's count — 忘了 4, 困难 3, 良好 2, 简单 0.
+    // The confirmation rule: a second consecutive 良好 ends the word (its
+    // confirmation passes succeeded — nothing more to reinforce), which is why
+    // the drop happens even when nothing new is queued.
+    for (let i = queue.length - 1; i > idx; i--) {
+      if (queue[i].word === word) queue.splice(i, 1);
     }
-    undoLast = { word, prev, appended, revisits: revisitsBefore };
+    let queued = 0;
+    if (!(prevLast === 4 && q === 4)) {
+      queued = PASSES[q] ?? 0;
+      for (let i = 0; i < queued; i++) queue.push(e);
+    }
+    lastGrade.set(word, q);
+    undoLast = { word, prev, queued, prevLast };
     idx++;
     revealed = false;
     render();
   }
 
   // Revert the last grade: restore the pre-grade SRS state, step back one card,
-  // and undo the session/activity counters so stats stay honest. If that grade
-  // had requeued the word, drop the still-pending revisit and restore the
-  // counter snapshot.
+  // and undo the session/activity counters so stats stay honest. The exact
+  // number of requeue copies that grade added is trimmed from the tail.
   function undo(): void {
     if (!undoLast) return;
-    const { word, prev, appended, revisits } = undoLast;
+    const { word, prev, queued, prevLast } = undoLast;
     if (prev) setWordState(listId, word, prev);
     else {
       removeWordState(listId, word);
@@ -164,12 +161,9 @@ export default function study([listId, extra]: string[], { navigate }: Ctx): Vie
     bumpActivity(-1);
     gradedLog.pop();
     recomputeCounts();
-    if (appended) {
-      // The revisit is still the queue tail (nothing was graded since).
-      queue.pop();
-      if (revisits === undefined) revisitCount.delete(word);
-      else revisitCount.set(word, revisits);
-    }
+    for (let i = 0; i < queued; i++) queue.pop(); // trim the copies this grade appended
+    if (prevLast === undefined) lastGrade.delete(word);
+    else lastGrade.set(word, prevLast);
     idx--;
     revealed = true; // it was revealed before grading — let them re-grade immediately
     undoLast = null; // single-step undo
@@ -199,7 +193,7 @@ export default function study([listId, extra]: string[], { navigate }: Ctx): Vie
   (async () => {
     setMeta({ selectedList: listId });
     const list = await loadList(listId);
-    listSize = list.length;
+    listWords = list;
     const s = buildSession(list, listId, dailyLimit(), extraNew);
     queue = s.due.concat(s.fresh);
     render(); // first card as soon as the list is in

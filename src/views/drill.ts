@@ -5,7 +5,7 @@ import { loadList, loadSentences } from '../data';
 import { schedule } from '../srs';
 import { autoSync, setOnPulled } from '../sync';
 import { t } from '../i18n';
-import { GRADES } from '../grades';
+import { GRADES, PASSES } from '../grades';
 import { topbar, setProgress, loadFailEl, loadingEl, entryHead, meaningBlock, gradesRow } from './common';
 import type { Ctx, ViewResult, WordEntry, Example } from '../types';
 
@@ -16,6 +16,7 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
   let revealed = false;
   let sentences: Record<string, Example[]> = {};
   const session = { total: 0, ok: 0 };
+  const lastGrade = new Map<string, number>();
 
   const bar = topbar(navigate, t('drill.title'));
   const area = h('div', { class: 'card-area' }, loadingEl());
@@ -66,10 +67,24 @@ export default function drill(_params: string[], { navigate }: Ctx): ViewResult 
     render();
   }
   function grade(q: number): void {
-    schedule(queue[idx].listId, queue[idx].word, q);
+    const e = queue[idx];
+    schedule(e.listId, e.word, q);
     bumpActivity(1);
     session.total++;
     if (q >= 3) session.ok++;
+    // Same tiered requeue as study (PASSES in grades.ts): drop this word's
+    // pending copies, then push the new tier's count (忘了 4 / 困难 3 / 良好 2 /
+    // 简单 0; a second consecutive 良好 confirms and ends the word — dropping
+    // its pending copies). Before this, drill just advanced the index — a word
+    // you kept failing vanished after one card.
+    for (let i = queue.length - 1; i > idx; i--) {
+      if (queue[i].word === e.word) queue.splice(i, 1);
+    }
+    if (!(lastGrade.get(e.word) === 4 && q === 4)) {
+      const n = PASSES[q] ?? 0;
+      for (let i = 0; i < n; i++) queue.push(e);
+    }
+    lastGrade.set(e.word, q);
     idx++;
     revealed = false;
     render();

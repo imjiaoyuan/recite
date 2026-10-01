@@ -4,6 +4,24 @@
 
 ## Changelog
 
+### v0.2.2 (2025-10-16)
+
+- **加学 fixes** — the 加学 top-up after finishing the daily quota works again
+  (`?extra=N` was parsed as garbage by a URLSearchParams misuse); the offer
+  button is honest (never promises more unseen words than the list has), and
+  words marked 已知/known no longer count against the daily new-word quota
+  offer or the learned stats.
+- **Tiered in-session requeue** — every grade now resets a word's remaining
+  appearances for today: 忘了 queues 4 more passes, 困难 3, 良好 2 (a second
+  consecutive 良好 confirms and ends it), 简单 0. Applied to both study and the
+  difficult-words drill — previously drill never requeued at all, so a word
+  you kept failing vanished after one card.
+- **Smoother sync indicator** — the home status pill now narrates progress
+  (拉取中 → 合并中 → 上传中 → 已同步) instead of freezing on one label while
+  multi-MB JSON work blocks the main thread; the manual sync button in
+  settings shows the same phases. Each phase paints before the heavy work
+  starts.
+
 ### v0.2.0 (2025-09-25)
 
 - **Multi-device cloud sync** — self-hosted mirror (one-click Cloudflare Worker +

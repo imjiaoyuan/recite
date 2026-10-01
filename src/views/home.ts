@@ -23,7 +23,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
   // tap opens settings. Hidden entirely when sync isn't configured.
   const syncPill = h('button', { class: 'sync-pill', onclick: () => navigate('#/settings') });
   function drawSync(): void {
-    const st = getMeta().syncStatus || { s: 'idle' as const, at: 0 }; // old installs predate the field
+    const st = getMeta().syncStatus || { s: 'idle' as const, at: 0, phase: undefined }; // old installs predate the field
     syncPill.innerHTML = '';
     if (!syncConfigured()) {
       syncPill.style.display = 'none';
@@ -31,7 +31,7 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     }
     syncPill.style.display = '';
     const label = st.s === 'idle' ? 'sync.idle'
-      : st.s === 'syncing' ? 'sync.doing'
+      : st.s === 'syncing' ? (st.phase === 'pull' ? 'sync.pull' : st.phase === 'merge' ? 'sync.merge' : st.phase === 'push' ? 'sync.push' : 'sync.doing')
       : st.s === 'ok' ? (st.at ? 'sync.doneAt' : 'sync.done')
       : 'sync.failShort';
     syncPill.className = `sync-pill ${st.s}`;
@@ -46,6 +46,8 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
   }
   drawSync();
   // report() persists the new status into meta before notifying — just redraw.
+  // The phase arg narrates pull/merge/push so the pill animates through the
+  // round instead of hanging on one label while JSON work blocks the thread.
   setOnStatus(() => drawSync());
 
   // Boot auto-sync may pull in progress from another device after the grid has
@@ -84,8 +86,10 @@ export default function home(_params: string[], { navigate }: Ctx): ViewResult {
     const byList = statsByList();
     for (const list of m.lists) {
       const total = list.count;
-      const s = byList[list.id] || { started: 0, due: 0 };
-      const next = newToday(list.id, total - s.started);
+      const s = byList[list.id] || { started: 0, known: 0, due: 0 };
+      // 已认识 words count as covered: the 新词 badge is what a session could
+      // still introduce, and buildSession never serves a known word.
+      const next = newToday(list.id, Math.max(0, total - s.started));
       const pct = total ? (s.started / total) * 100 : 0;
 
       grid.append(

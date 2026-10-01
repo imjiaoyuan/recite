@@ -7,7 +7,7 @@ import { t, setLang, browserLangCode, browserLangUnsupported } from '../i18n';
 import { setTheme } from '../theme';
 import { dropdown } from '../dropdown';
 import { cacheAllData, canInstall, promptInstall } from '../pwa';
-import { runSync, syncConfigured, sameOriginStore, validSyncKey } from '../sync';
+import { runSync, syncConfigured, sameOriginStore, validSyncKey, setOnStatusOnce } from '../sync';
 declare const APP_VERSION: string; // injected at build time (vite.config.ts define)
 import { topbar } from './common';
 import type { Ctx, ViewResult } from '../types';
@@ -112,8 +112,17 @@ export default function settings(_params: string[], { navigate }: Ctx): ViewResu
     async function doSync(btn: HTMLElement): Promise<void> {
       const label = btn.querySelector('.btn-label');
       btn.setAttribute('disabled', '');
-      if (label) label.textContent = t('sync.syncing');
-      const r = await runSync();
+      // Mirror the pill's phase narration onto the button itself — runSync()
+      // reports pull/merge/push through setOnStatus, so reuse that stream.
+      const off = setOnStatusOnce((_s, phase) => {
+        if (label && phase) label.textContent = t(phase === 'pull' ? 'sync.pull' : phase === 'merge' ? 'sync.merge' : 'sync.push');
+      });
+      let r: Awaited<ReturnType<typeof runSync>>;
+      try {
+        r = await runSync();
+      } finally {
+        off();
+      }
       btn.removeAttribute('disabled');
       if (label) label.textContent = t('sync.now');
       if (r.ok && r.pulled > 0) {
